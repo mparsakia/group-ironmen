@@ -26,3 +26,11 @@
 .panels-page .authed-section__main-content {
   overflow: hidden;
 }
+
+.drag-handle {
+  cursor: grab;
+  padding: 4px;
+  margin: 4px;
+  background-color: #ccc;
+  display: inline-block;
+}
