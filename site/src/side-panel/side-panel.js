@@ -19,19 +19,15 @@ export class SidePanel extends BaseElement {
     let draggedItem = null;
 
     this.sidePanels.addEventListener('dragstart', (e) => {
-        if (e.target.classList.contains("drag-handle")) {
-            draggedItem = e.target.closest('.player-panel');
-            setTimeout(() => draggedItem.style.opacity = "0.5", 0);
-        }
+        draggedItem = e.target;
+        setTimeout(() => e.target.style.opacity = "0.5", 0);
     });
 
     this.sidePanels.addEventListener('dragend', (e) => {
-        if (draggedItem) {
-            setTimeout(() => {
-                draggedItem.style.opacity = "";
-                draggedItem = null;
-            }, 0);
-        }
+        setTimeout(() => {
+            draggedItem.style.opacity = "";
+            draggedItem = null;
+        }, 0);
     });
 
     this.sidePanels.addEventListener('dragover', (e) => {
@@ -59,9 +55,7 @@ export class SidePanel extends BaseElement {
       if (member.name === "@SHARED") {
         continue;
       }
-      playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}">
-    <div class="drag-handle">&#9776;</div> <!-- Drag handle added here -->
-</player-panel>`;
+      playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"></player-panel>`;
     }
 
     this.sidePanels.innerHTML = playerPanels;
