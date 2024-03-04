@@ -6,7 +6,7 @@ import { utility } from "../utility";
 import { AchievementDiary } from "./diaries";
 
 const playerColors = [
-  "hsl(131, 65%, 55%)",
+ "hsl(131, 65%, 55%)",
  "hsl(0, 65%, 55%)",
  "hsl(230, 65%, 55%)",
  "hsl(188, 65%, 55%)",
