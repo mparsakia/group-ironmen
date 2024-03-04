@@ -124,7 +124,7 @@ export class CreateGroup extends BaseElement {
       memberNames.push(input.value);
     }
 
-    for (let i = memberNames.length; i < 5; ++i) {
+    for (let i = memberNames.length; i < 12; ++i) {
       memberNames.push("");
     }
 

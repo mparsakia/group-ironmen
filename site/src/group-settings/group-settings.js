@@ -54,7 +54,7 @@ export class GroupSettings extends BaseElement {
       memberEdits.appendChild(memberEdit);
     }
 
-    if (members.length < 5) {
+    if (members.length < 12 ) {
       const addMember = document.createElement("edit-member");
       addMember.memberNumber = members.length + 1;
       memberEdits.appendChild(addMember);

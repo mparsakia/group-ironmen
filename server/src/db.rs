@@ -70,7 +70,7 @@ pub async fn add_group_member(
         .try_get(0)
         .map_err(ApiError::AddMemberError)?;
 
-    if member_count >= 5 {
+    if member_count >= 12 {
         return Err(ApiError::GroupFullError);
     }
 
