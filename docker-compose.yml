@@ -1,7 +1,7 @@
 version: "3.8"
 services:
   group-ironmen-tracker-frontend:
-    image: chrisleeeee/group-ironmen-tracker-frontend
+    build: ./site
     environment:
       - HOST_URL=${HOST_URL}
     restart: always
@@ -9,10 +9,8 @@ services:
     ports:
       - 4000:4000 # replace this if using a docker-compatible reverse proxy like traefik
   group-ironmen-tracker-backend:
-    # build:
-      # context: ./server
-      # dockerfile: Dockerfile
-    image: chrisleeeee/group-ironmen-tracker-backend
+    build:
+      context: ./server
     environment:
       - PG_USER=${PG_USER}
       - PG_PASSWORD=${PG_PASSWORD}
@@ -25,7 +23,7 @@ services:
       - "postgres"
     container_name: group-ironmen-tracker-backend
     ports:
-      - 5000:8080  # replace this if using a docker-compatible reverse proxy like traefik
+      - 5000:8080 # replace this if using a docker-compatible reverse proxy like traefik
   postgres:
     image: postgres
     restart: always
