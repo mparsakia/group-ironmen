@@ -60,7 +60,7 @@ export class CanvasMap extends BaseElement {
         progress: 1,
       }),
       maxZoom: 6,
-      minZoom: 1,
+      minZoom: -6,
       isDragging: false,
     };
     this.cursor = {
