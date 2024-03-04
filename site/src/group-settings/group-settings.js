@@ -67,6 +67,7 @@ export class GroupSettings extends BaseElement {
   }
 
   loadMemberOrder() {
+    console.log('loading member order');
     const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
     memberOrder.forEach(memberName => {
       const memberButtonContainer = document.createElement('div');
