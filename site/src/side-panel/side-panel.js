@@ -13,6 +13,16 @@ export class SidePanel extends BaseElement {
     super.connectedCallback();
     this.render();
     this.sidePanels = this.querySelector(".side-panel__panels");
+    // Load and apply saved panel order
+    const savedOrder = JSON.parse(localStorage.getItem('panelOrder'));
+    if (savedOrder) {
+        savedOrder.forEach(panelId => {
+            const panel = this.sidePanels.querySelector(`#${panelId}`);
+            if (panel) {
+                this.sidePanels.appendChild(panel);
+            }
+        });
+    }
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
 
     // Drag and Drop functionality
@@ -40,8 +50,9 @@ export class SidePanel extends BaseElement {
 
     this.sidePanels.addEventListener('drop', (e) => {
         e.preventDefault();
-        if (e.target.classList.contains("player-panel")) {
-            this.sidePanels.insertBefore(draggedItem, e.target.nextSibling);
+        const targetPanel = e.target.closest('.player-panel');
+        if (targetPanel && draggedItem) {
+            this.sidePanels.insertBefore(draggedItem, targetPanel.nextSibling);
             // Update order in localStorage
             const order = Array.from(this.sidePanels.children).map(panel => panel.id);
             localStorage.setItem('panelOrder', JSON.stringify(order));
@@ -59,7 +70,7 @@ export class SidePanel extends BaseElement {
       if (member.name === "@SHARED") {
         continue;
       }
-      playerPanels += `<player-panel draggable="true" class="rsborder rsbackground" player-name="${member.name}"><div class="drag-handle">&#9776;</div></player-panel>`;
+      playerPanels += `<player-panel draggable="true" class="rsborder rsbackground" player-name="${member.name}"><div class="drag-handle">&plus;</div></player-panel>`;
     }
 
     this.sidePanels.innerHTML = playerPanels;
