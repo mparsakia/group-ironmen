@@ -59,7 +59,7 @@ export class SidePanel extends BaseElement {
       if (member.name === "@SHARED") {
         continue;
       }
-      playerPanels += `<player-panel draggable="true" class="rsborder rsbackground" player-name="${member.name}"><div class="drag-handle">&#9776;</div></player-panel>`;
+      playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"><div class="drag-handle">&#9776;</div></player-panel>`;
     }
 
     this.sidePanels.innerHTML = playerPanels;
