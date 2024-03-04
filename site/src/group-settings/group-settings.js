@@ -69,6 +69,7 @@ export class GroupSettings extends BaseElement {
   loadMemberOrder() {
     console.log('loading member order');
     const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+    const membersList = this.querySelector(".group-settings__members-list"); // Ensure correct element is targeted
     memberOrder.forEach(memberName => {
       const memberButtonContainer = document.createElement('div');
       const upButton = document.createElement('button');
@@ -78,7 +79,7 @@ export class GroupSettings extends BaseElement {
       downButton.textContent = 'Down';
       downButton.onclick = () => this.moveMember(memberName, 1);
       memberButtonContainer.append(upButton, downButton, document.createTextNode(memberName));
-      this.membersList.appendChild(memberButtonContainer);
+      membersList.appendChild(memberButtonContainer); // Use the correct element for appending
     });
   }
 
@@ -98,4 +99,5 @@ export class GroupSettings extends BaseElement {
 }
 
 customElements.define("group-settings", GroupSettings);
+
 
