@@ -160,7 +160,7 @@ pub async fn create_group(
         }
     }
 
-    if create_group_inner.member_names.len() > 5 {
+    if create_group_inner.member_names.len() > 12 {
         return Ok(HttpResponse::BadRequest().body("Too many member names provided"));
     }
 
