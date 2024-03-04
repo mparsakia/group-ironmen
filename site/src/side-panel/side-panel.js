@@ -22,13 +22,13 @@ export class SidePanel extends BaseElement {
 
   handleUpdatedMembers(members) {
     let playerPanels = "";
-    for (const member of members) {
-      if (member.name === "@SHARED") {
-        continue;
+    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || members.map(member => member.name);
+    memberOrder.forEach(memberName => {
+      const member = members.find(m => m.name === memberName);
+      if (member && member.name !== "@SHARED") {
+        playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"></player-panel>`;
       }
-      playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"></player-panel>`;
-    }
-
+    });
     this.sidePanels.innerHTML = playerPanels;
   }
 }
