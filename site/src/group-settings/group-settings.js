@@ -19,19 +19,21 @@ export class GroupSettings extends BaseElement {
     this.panelDockSide = this.querySelector(".group-settings__panels");
     this.appearanceStyle = this.querySelector(".group-settings__style");
     this.membersList = this.querySelector(".group-settings__members-list");
-    this.memberOrderInput = this.querySelector(".group-settings__member-order");
-    this.setOrderButton = this.querySelector(".group-settings__set-order");
-    this.eventListener(this.setOrderButton, "click", this.handleSetOrder.bind(this));
-    this.setOrderButton.addEventListener("click", () => {
-      const memberOrder = this.memberOrderInput.value.split(",");
-      console.log("Setting member order:", memberOrder);
-      localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
-    });
+
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
     this.eventListener(this.panelDockSide, "change", this.handlePanelDockSideChange.bind(this));
     this.eventListener(this.appearanceStyle, "change", this.handleStyleChange.bind(this));
-
-
+    
+    const orderFieldset = this.QuerySelector(".group-settings__order");
+    const memberOrderInput = this.QuerySelector(".group-settings__member-order");
+    const setOrderButton = this.QuerySelector(".group-settings__set-order");
+    if(orderFieldset && memberOrderInput && setOrderButton) {
+      this.eventListener(setOrderButton, "click", () => {
+        const memberOrder = memberOrderInput.value.split(",") || [];
+        console.log("Setting member order:", memberOrder);
+        localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
+      });
+    }
   }
 
   disconnectedCallback() {
