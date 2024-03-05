@@ -43,8 +43,7 @@ export class LoginPage extends BaseElement {
       api.setCredentials(name, token);
       const response = await api.amILoggedIn();
       if (response.ok) {
-        console.log(response.text()); 
-        storage.storeGroup(name, token);
+        storage.storeGroup(name, token, []);
         window.history.pushState("", "", "/group");
       } else {
         if (response.status === 401) {

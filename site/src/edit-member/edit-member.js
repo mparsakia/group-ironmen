@@ -32,26 +32,26 @@ export class EditMember extends BaseElement {
     if (addButton) {
       this.eventListener(addButton, "click", this.addMember.bind(this));
     }
-    
+
     const moveTopButton = this.querySelector(".edit-member__move-top");
     if (moveTopButton) {
       this.eventListener(moveTopButton, "click", this.moveMemberToTop.bind(this));
     }
 
-    
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
   }
 
+  // Try simple way of reorganizing the member order for the panels...
   moveMemberToTop() {
     const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
     const memberIndex = memberOrder.indexOf(this.member.name);
     if (memberIndex > -1) {
       memberOrder.splice(memberIndex, 1);
       memberOrder.unshift(this.member.name);
-      localStorage.setItem('memberOrder', JSON.stringify(memberOrder));
+      localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
     }
   }
 
@@ -78,6 +78,12 @@ export class EditMember extends BaseElement {
       loadingScreenManager.showLoadingScreen();
       const result = await api.renameMember(originalName, newName);
       if (result.ok) {
+        const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+        const memberIndex = memberOrder.indexOf(originalName);
+        if (memberIndex > -1) {
+          memberOrder[memberIndex] = newName;
+          localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
+        }
         await api.restart();
         await pubsub.waitUntilNextEvent("get-group-data", false);
       } else {
@@ -101,6 +107,12 @@ export class EditMember extends BaseElement {
           loadingScreenManager.showLoadingScreen();
           const result = await api.removeMember(this.member.name);
           if (result.ok) {
+            const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+            const memberIndex = memberOrder.indexOf(this.member.name);
+            if (memberIndex > -1) {
+              memberOrder.splice(memberIndex, 1);
+              localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
+            }
             await api.restart();
             await pubsub.waitUntilNextEvent("get-group-data", false);
           } else {
@@ -125,6 +137,9 @@ export class EditMember extends BaseElement {
       loadingScreenManager.showLoadingScreen();
       const result = await api.addMember(this.input.value);
       if (result.ok) {
+        const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+        memberOrder.push(this.input.value);
+        localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
         await api.restart();
         await pubsub.waitUntilNextEvent("get-group-data", false);
       } else {

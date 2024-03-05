@@ -64,10 +64,10 @@ export class GroupSettings extends BaseElement {
 
     this.memberSection.innerHTML = "";
     this.memberSection.appendChild(memberEdits);
+
   }
 
   loadMemberOrder() {
-    console.log('loading member order');
     this.membersList.innerHTML = ''; // Clear existing content
 
     // Create table elements
@@ -80,7 +80,7 @@ export class GroupSettings extends BaseElement {
     // Create header row
     const headerRow = document.createElement('tr');
     const headerCellName = document.createElement('th');
-    headerCellName.textContent = 'Player Names';
+    headerCellName.textContent = 'Players';
     headerRow.appendChild(headerCellName);
 
     const headerCellActions = document.createElement('th');
@@ -129,7 +129,7 @@ export class GroupSettings extends BaseElement {
       if (newIndex >= 0 && newIndex < memberOrder.length) {
         memberOrder.splice(index, 1);
         memberOrder.splice(newIndex, 0, memberName);
-        localStorage.setItem('memberOrder', JSON.stringify(memberOrder));
+        localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
         this.loadMemberOrder();
       }
     }

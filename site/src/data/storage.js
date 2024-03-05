@@ -2,7 +2,7 @@ class Storage {
   storeGroup(groupName, groupToken, memberNames) {
     localStorage.setItem("groupName", groupName);
     localStorage.setItem("groupToken", groupToken);
-    localStorage.setItem("memberOrder", JSON.stringify(memberNames));
+    localStorage.setItem("memberOrder", JSON.stringify(memberNames || []));
   }
 
   getGroup() {
