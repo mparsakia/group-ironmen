@@ -29,7 +29,7 @@ export class GroupSettings extends BaseElement {
     const setOrderButton = this.querySelector(".group-settings__set-order");
     if(orderFieldset && memberOrderInput && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
-        const memberOrder = memberOrderInput.value.split(",") || [];
+        const memberOrder = memberOrderInput.value.split(",").map(item => item.trim()).filter(item => item) || [];
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
         window.location.reload();

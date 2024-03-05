@@ -6,18 +6,18 @@ import { utility } from "../utility";
 import { AchievementDiary } from "./diaries";
 
 const playerColors = [
- "hsl(131, 65%, 35%)",
- "hsl(0, 65%, 35%)",
- "hsl(230, 65%, 35%)",
- "hsl(188, 65%, 35%)",
- "hsl(320, 65%, 35%)",
- "hsl(40, 100%, 35%)",
- "hsl(85, 100%, 85%)",
- "hsl(0, 100%, 80%)",
- "hsl(230, 100%, 85%)",
- "hsl(188, 100%, 85%)",
- "hsl(288, 100%, 85%)",
- "hsl(40, 100%, 85%)"
+  "hsl(0, 75%, 60%)",    // Red
+  "hsl(30, 75%, 60%)",   // Orange
+  "hsl(60, 75%, 60%)",   // Yellow
+  "hsl(90, 75%, 60%)",   // Lime Green
+  "hsl(120, 75%, 60%)",  // Green
+  "hsl(150, 75%, 60%)",  // Brighter Green
+  "hsl(180, 75%, 60%)",  // Cyan
+  "hsl(210, 75%, 60%)",  // Sky Blue
+  "hsl(240, 75%, 60%)",  // Blue
+  "hsl(270, 75%, 60%)",  // Violet
+  "hsl(300, 75%, 60%)",  // Magenta
+  "hsl(330, 75%, 60%)"   // Pink
 ];
 let currentColor = 0;
 
