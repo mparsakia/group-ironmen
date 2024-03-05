@@ -643,7 +643,7 @@ export class CanvasMap extends BaseElement {
   onScroll(event) {
     if (this.camera.isDragging) return;
     this.zoomOntoPoint({
-      delta: -0.2 * Math.sign(event.deltaY) * this.camera.zoom.target,
+      delta: -0.05 * Math.sign(event.deltaY) * this.camera.zoom.target,
       x: this.cursor.x,
       y: this.cursor.y,
       animationTime: 100,
