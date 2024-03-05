@@ -213,6 +213,7 @@ input {
 
 input::placeholder {
   color: var(--orange);
+  background-color: var(--darken);
   opacity: 0.65;
 }
 
