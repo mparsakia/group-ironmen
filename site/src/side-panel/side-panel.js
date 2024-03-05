@@ -43,4 +43,3 @@ export class SidePanel extends BaseElement {
   }
 }
 customElements.define("side-panel", SidePanel);
-customElements.define("side-panel", SidePanel);
