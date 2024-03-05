@@ -32,6 +32,7 @@ export class GroupSettings extends BaseElement {
         const memberOrder = memberOrderInput.value.split(",") || [];
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
+        window.location.reload();
       });
     }
   }
