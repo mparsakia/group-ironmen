@@ -24,9 +24,9 @@ export class GroupSettings extends BaseElement {
     this.eventListener(this.panelDockSide, "change", this.handlePanelDockSideChange.bind(this));
     this.eventListener(this.appearanceStyle, "change", this.handleStyleChange.bind(this));
     
-    const orderFieldset = this.QuerySelector(".group-settings__order");
-    const memberOrderInput = this.QuerySelector(".group-settings__member-order");
-    const setOrderButton = this.QuerySelector(".group-settings__set-order");
+    const orderFieldset = this.querySelector(".group-settings__order");
+    const memberOrderInput = this.querySelector(".group-settings__member-order");
+    const setOrderButton = this.querySelector(".group-settings__set-order");
     if(orderFieldset && memberOrderInput && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
         const memberOrder = memberOrderInput.value.split(",") || [];
