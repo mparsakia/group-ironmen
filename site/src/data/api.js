@@ -176,6 +176,8 @@ class Api {
       headers: { Authorization: this.groupToken },
     });
 
+    console.log("amIloggedIn",response);
+
     return response;
   }
 

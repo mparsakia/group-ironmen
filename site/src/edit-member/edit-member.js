@@ -32,10 +32,27 @@ export class EditMember extends BaseElement {
     if (addButton) {
       this.eventListener(addButton, "click", this.addMember.bind(this));
     }
+    
+    const moveTopButton = this.querySelector(".edit-member__move-top");
+    if (moveTopButton) {
+      this.eventListener(moveTopButton, "click", this.moveMemberToTop.bind(this));
+    }
+
+    
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+  }
+
+  moveMemberToTop() {
+    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+    const memberIndex = memberOrder.indexOf(this.member.name);
+    if (memberIndex > -1) {
+      memberOrder.splice(memberIndex, 1);
+      memberOrder.unshift(this.member.name);
+      localStorage.setItem('memberOrder', JSON.stringify(memberOrder));
+    }
   }
 
   hideError() {

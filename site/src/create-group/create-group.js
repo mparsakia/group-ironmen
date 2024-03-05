@@ -137,8 +137,7 @@ export class CreateGroup extends BaseElement {
         this.serverError.innerHTML = `Error creating group: ${message}`;
       } else {
         const createdGroup = await result.json();
-
-        storage.storeGroup(createdGroup.name, createdGroup.token);
+        storage.storeGroup(createdGroup.name, createdGroup.token, memberNames);
         window.history.pushState("", "", "/setup-instructions");
       }
     } catch (err) {
