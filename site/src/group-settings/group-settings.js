@@ -34,6 +34,12 @@ export class GroupSettings extends BaseElement {
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
         window.location.reload();
       });
+
+      const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
+      if (storedMemberOrder.length > 0) {
+        memberOrderInput.value = storedMemberOrder.join(",");
+      }
+
     }
   }
 

@@ -22,23 +22,27 @@ export class SidePanel extends BaseElement {
 
   handleUpdatedMembers(members) {
     let playerPanels = "";
+    // Retrieve the member order, defaulting to the order in the members array if none is stored
     const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || members.map(member => member.name);
-
-    // Iterate over the member order to create the player panels in order from the memberOrder
-    memberOrder.forEach(memberName => {
+  
+    // Filter out member names starting with "-" from memberOrder for rendering
+    const filteredMemberOrder = memberOrder.filter(name => !name.startsWith("-"));
+  
+    // Iterate over the filtered member order to create the player panels
+    filteredMemberOrder.forEach(memberName => {
       const member = members.find(m => m.name === memberName);
       if (member && member.name !== "@SHARED") {
         playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"></player-panel>`;
       }
     });
-
-    // for any remaining members (not in memberOrder) add after the ordered members
+  
+    // For any remaining members (not in filteredMemberOrder and not prefixed with "-") add them after the ordered members
     members.forEach(member => {
-      if (!memberOrder.includes(member.name) && member.name !== "@SHARED") {
+      if (!filteredMemberOrder.includes(member.name) && member.name !== "@SHARED" && !memberOrder.includes("-" + member.name)) {
         playerPanels += `<player-panel class="rsborder rsbackground" player-name="${member.name}"></player-panel>`;
       }
     });
-
+  
     this.sidePanels.innerHTML = playerPanels;
   }
 }
