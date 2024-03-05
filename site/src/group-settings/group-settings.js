@@ -68,15 +68,19 @@ export class GroupSettings extends BaseElement {
 
   loadMemberOrder() {
     console.log('loading member order');
-    // Clear existing content to ensure we're starting fresh
-    this.membersList.innerHTML = '';
-
-    // Create a simple <h1> element
-    const helloWorldElement = document.createElement('h1');
-    helloWorldElement.textContent = 'Hello World';
-
-    // Append the <h1> element to the members list
-    this.membersList.appendChild(helloWorldElement);
+    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
+    const membersList = this.querySelector(".group-settings__members-list"); // Ensure correct element is targeted
+    memberOrder.forEach(memberName => {
+      const memberButtonContainer = document.createElement('div');
+      const upButton = document.createElement('button');
+      upButton.textContent = 'Up';
+      upButton.onclick = () => this.moveMember(memberName, -1);
+      const downButton = document.createElement('button');
+      downButton.textContent = 'Down';
+      downButton.onclick = () => this.moveMember(memberName, 1);
+      memberButtonContainer.append(upButton, downButton, document.createTextNode(memberName));
+      membersList.appendChild(memberButtonContainer); // Use the correct element for appending
+    });
   }
 
   moveMember(memberName, direction) {
@@ -95,3 +99,5 @@ export class GroupSettings extends BaseElement {
 }
 
 customElements.define("group-settings", GroupSettings);
+
+

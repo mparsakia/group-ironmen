@@ -12,14 +12,6 @@ export class SidePanel extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     this.render();
-
-    // Create a simple <h1> element
-    const helloWorldElement = document.createElement('h1');
-    helloWorldElement.textContent = 'Hello World 2';
-
-    // Append the <h1> element to the side panel
-    this.appendChild(helloWorldElement);
-
     this.sidePanels = this.querySelector(".side-panel__panels");
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
   }
