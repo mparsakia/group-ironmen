@@ -16,7 +16,6 @@ export class EditMember extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     this.render();
-
     this.input = this.querySelector("member-name-input");
     this.error = this.querySelector(".edit-member__error");
     const renameButton = this.querySelector(".edit-member__rename");
@@ -32,27 +31,10 @@ export class EditMember extends BaseElement {
     if (addButton) {
       this.eventListener(addButton, "click", this.addMember.bind(this));
     }
-
-    const moveTopButton = this.querySelector(".edit-member__move-top");
-    if (moveTopButton) {
-      this.eventListener(moveTopButton, "click", this.moveMemberToTop.bind(this));
-    }
-
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
-  }
-
-  // Try simple way of reorganizing the member order for the panels...
-  moveMemberToTop() {
-    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
-    const memberIndex = memberOrder.indexOf(this.member.name);
-    if (memberIndex > -1) {
-      memberOrder.splice(memberIndex, 1);
-      memberOrder.unshift(this.member.name);
-      localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
-    }
   }
 
   hideError() {
@@ -132,14 +114,10 @@ export class EditMember extends BaseElement {
   async addMember() {
     this.hideError();
     if (!this.input.valid) return;
-
     try {
       loadingScreenManager.showLoadingScreen();
       const result = await api.addMember(this.input.value);
       if (result.ok) {
-        const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
-        memberOrder.push(this.input.value);
-        localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
         await api.restart();
         await pubsub.waitUntilNextEvent("get-group-data", false);
       } else {

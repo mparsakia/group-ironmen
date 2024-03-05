@@ -19,10 +19,19 @@ export class GroupSettings extends BaseElement {
     this.panelDockSide = this.querySelector(".group-settings__panels");
     this.appearanceStyle = this.querySelector(".group-settings__style");
     this.membersList = this.querySelector(".group-settings__members-list");
+    this.memberOrderInput = this.querySelector(".group-settings__member-order");
+    this.setOrderButton = this.querySelector(".group-settings__set-order");
+    this.eventListener(this.setOrderButton, "click", this.handleSetOrder.bind(this));
+    this.setOrderButton.addEventListener("click", () => {
+      const memberOrder = this.memberOrderInput.value.split(",");
+      console.log("Setting member order:", memberOrder);
+      localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
+    });
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
     this.eventListener(this.panelDockSide, "change", this.handlePanelDockSideChange.bind(this));
     this.eventListener(this.appearanceStyle, "change", this.handleStyleChange.bind(this));
-    this.loadMemberOrder();
+
+
   }
 
   disconnectedCallback() {
@@ -65,74 +74,6 @@ export class GroupSettings extends BaseElement {
     this.memberSection.innerHTML = "";
     this.memberSection.appendChild(memberEdits);
 
-  }
-
-  loadMemberOrder() {
-    this.membersList.innerHTML = ''; // Clear existing content
-
-    // Create table elements
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    const tbody = document.createElement('tbody');
-    table.appendChild(thead);
-    table.appendChild(tbody);
-
-    // Create header row
-    const headerRow = document.createElement('tr');
-    const headerCellName = document.createElement('th');
-    headerCellName.textContent = 'Players';
-    headerRow.appendChild(headerCellName);
-
-    const headerCellActions = document.createElement('th');
-    headerCellActions.textContent = 'Actions';
-    headerRow.appendChild(headerCellActions);
-
-    thead.appendChild(headerRow);
-
-    // Assuming 'memberOrder' contains the list of player names
-    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
-    memberOrder.forEach((memberName, index) => {
-      const row = document.createElement('tr');
-      const cellName = document.createElement('td');
-      cellName.textContent = memberName;
-      row.appendChild(cellName);
-
-      // Actions cell
-      const cellActions = document.createElement('td');
-      const upButton = document.createElement('button');
-      upButton.textContent = 'Up';
-      upButton.onclick = () => this.moveMember(memberName, -1);
-      const downButton = document.createElement('button');
-      downButton.textContent = 'Down';
-      downButton.onclick = () => this.moveMember(memberName, 1);
-
-      // Disable up button for the first item and down button for the last item
-      if (index === 0) upButton.disabled = true;
-      if (index === memberOrder.length - 1) downButton.disabled = true;
-
-      cellActions.appendChild(upButton);
-      cellActions.appendChild(downButton);
-      row.appendChild(cellActions);
-
-      tbody.appendChild(row);
-    });
-
-    // Append the table to the members list
-    this.membersList.appendChild(table);
-  }
-
-  moveMember(memberName, direction) {
-    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
-    const index = memberOrder.indexOf(memberName);
-    if (index > -1) {
-      const newIndex = index + direction;
-      if (newIndex >= 0 && newIndex < memberOrder.length) {
-        memberOrder.splice(index, 1);
-        memberOrder.splice(newIndex, 0, memberName);
-        localStorage.setItem('memberOrder', JSON.stringify(memberOrder || []));
-        this.loadMemberOrder();
-      }
-    }
   }
 }
 

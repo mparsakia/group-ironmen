@@ -12,7 +12,6 @@ export class ItemsPage extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     this.render();
-
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
   }
 
