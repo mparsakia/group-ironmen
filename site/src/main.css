@@ -204,10 +204,6 @@ input {
   box-shadow: inset 3px 3px 3px #261d11;
   border-radius: 4px;
   line-height: 1em;
-  ::placeholder {
-    color: var(--orange);
-    opacity: 0.65;
-  }
 }
 
 .dark-mode input {
@@ -217,7 +213,7 @@ input {
 
 input::placeholder {
   color: var(--orange);
-  opacity: 0.9;
+  opacity: 0.65;
 }
 
 input:focus-visible {
