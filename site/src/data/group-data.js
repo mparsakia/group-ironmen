@@ -16,7 +16,7 @@ export class GroupData {
 
   update(groupData) {
     this.transformFromStorage(groupData);
-    // groupData.sort((a, b) => a.name.localeCompare(b.name)); // test - member registration order matters for display... I want them in a certain order
+    groupData.sort((a, b) => a.name.localeCompare(b.name));
     const removedMembers = new Set(this.members.keys());
 
     let updatedAttributes = new Set();
