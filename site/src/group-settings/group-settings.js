@@ -68,19 +68,57 @@ export class GroupSettings extends BaseElement {
 
   loadMemberOrder() {
     console.log('loading member order');
+    this.membersList.innerHTML = ''; // Clear existing content
+
+    // Create table elements
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+    table.appendChild(thead);
+    table.appendChild(tbody);
+
+    // Create header row
+    const headerRow = document.createElement('tr');
+    const headerCellName = document.createElement('th');
+    headerCellName.textContent = 'Player Names';
+    headerRow.appendChild(headerCellName);
+
+    const headerCellActions = document.createElement('th');
+    headerCellActions.textContent = 'Actions';
+    headerRow.appendChild(headerCellActions);
+
+    thead.appendChild(headerRow);
+
+    // Assuming 'memberOrder' contains the list of player names
     const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || [];
-    const membersList = this.querySelector(".group-settings__members-list"); // Ensure correct element is targeted
-    memberOrder.forEach(memberName => {
-      const memberButtonContainer = document.createElement('div');
+    memberOrder.forEach((memberName, index) => {
+      const row = document.createElement('tr');
+      const cellName = document.createElement('td');
+      cellName.textContent = memberName;
+      row.appendChild(cellName);
+
+      // Actions cell
+      const cellActions = document.createElement('td');
       const upButton = document.createElement('button');
       upButton.textContent = 'Up';
       upButton.onclick = () => this.moveMember(memberName, -1);
       const downButton = document.createElement('button');
       downButton.textContent = 'Down';
       downButton.onclick = () => this.moveMember(memberName, 1);
-      memberButtonContainer.append(upButton, downButton, document.createTextNode(memberName));
-      membersList.appendChild(memberButtonContainer); // Use the correct element for appending
+
+      // Disable up button for the first item and down button for the last item
+      if (index === 0) upButton.disabled = true;
+      if (index === memberOrder.length - 1) downButton.disabled = true;
+
+      cellActions.appendChild(upButton);
+      cellActions.appendChild(downButton);
+      row.appendChild(cellActions);
+
+      tbody.appendChild(row);
     });
+
+    // Append the table to the members list
+    this.membersList.appendChild(table);
   }
 
   moveMember(memberName, direction) {
@@ -99,5 +137,3 @@ export class GroupSettings extends BaseElement {
 }
 
 customElements.define("group-settings", GroupSettings);
-
-
