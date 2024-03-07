@@ -6,7 +6,7 @@ import quickselect from "../quick-select";
 export class InventoryPager extends BaseElement {
   constructor() {
     super();
-    this.pageLimit = 1500;
+    this.pageLimit = 3000;
     this.currentPage = 1;
     this.numberOfItems = 0;
     this.compare = this.compareOnQuantity.bind(this);

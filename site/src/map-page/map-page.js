@@ -50,15 +50,31 @@ export class MapPage extends BaseElement {
 
   handleUpdatedMembers(members) {
     let playerButtons = "";
-    for (const member of members) {
-      if (member.name === "@SHARED") continue;
-      playerButtons += `<button type="button" class="men-button" player-name="${member.name}">${member.name}</button>`;
-    }
+    // Retrieve the member order, defaulting to the order in the members array if none is stored
+    const memberOrder = JSON.parse(localStorage.getItem('memberOrder')) || members.map(member => member.name);
+
+    // Filter out member names starting with "-" from memberOrder for rendering
+    const filteredMemberOrder = memberOrder.filter(name => !name.startsWith("-"));
+
+    // Iterate over the filtered member order to create the player buttons
+    filteredMemberOrder.forEach(memberName => {
+      const member = members.find(m => m.name === memberName);
+      if (member && member.name !== "@SHARED") {
+        playerButtons += `<button type="button" class="men-button" player-name="${member.name}">${member.name}</button>`;
+      }
+    });
+
+    // For any remaining members (not in filteredMemberOrder and not prefixed with "-") add their buttons after the ordered members
+    members.forEach(member => {
+      if (!filteredMemberOrder.includes(member.name) && member.name !== "@SHARED" && !memberOrder.includes("-" + member.name)) {
+        playerButtons += `<button type="button" class="men-button" player-name="${member.name}">${member.name}</button>`;
+      }
+    });
 
     if (this.playerButtons) {
       this.playerButtons.innerHTML = playerButtons;
     }
-  }
+}
 
   handleFocusPlayer(event) {
     const target = event.target;
