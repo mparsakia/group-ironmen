@@ -24,7 +24,15 @@ export class MapPage extends BaseElement {
     this.eventListener(this.playerButtons, "click", this.handleFocusPlayer.bind(this));
     this.eventListener(this.planeSelect, "change", this.handlePlaneSelect.bind(this));
     this.eventListener(this.worldMap, "plane-changed", this.handlePlaneChange.bind(this));
+    this.subscribe(`stats:${this.playerName}`, this.testLogging.bind(this));
+    this.subscribe(`inactive:${this.playerName}`, this.testLogging.bind(this));
+    this.subscribe(`active:${this.playerName}`, this.testLogging.bind(this));
   }
+
+  testLogging() {
+    console.log("test", this);
+  }
+
 
   disconnectedCallback() {
     super.disconnectedCallback();
