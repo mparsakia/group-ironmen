@@ -2,6 +2,24 @@
 <html>
   <head>
     <title>ClassicMap</title>
+    <script src="https://unpkg.com/highlight.run" fetchpriority="high"></script>
+    <script>
+        H.init('kevqkq5g', {
+            environment: 'production',
+            version: 'web:v1',
+            networkRecording: {
+              enabled: true,
+              recordHeadersAndBody: true,
+              urlBlocklist: [],
+            },
+            enableCanvasRecording: true,        
+            samplingStrategy: {
+              canvas: 5,                       
+              canvasMaxSnapshotDimension: 720,
+            },
+            recordCrossOriginIframe: true,
+        });
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
