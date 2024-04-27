@@ -95,7 +95,32 @@ export class CanvasMap extends BaseElement {
       this.validTiles.push(new Set(x));
     }
 
-    this.locations = data.icons;
+    this.locations = {};
+    for (const tileRegionX of Object.keys(data.icons)) {
+      const x = parseInt(tileRegionX);
+      this.locations[x] = {};
+      for (const tileRegionY of Object.keys(data.icons[tileRegionX])) {
+        const y = parseInt(tileRegionY);
+        this.locations[x][y] = {};
+        for (const spriteIndex of Object.keys(data.icons[tileRegionX][tileRegionY])) {
+          this.locations[x][y][parseInt(spriteIndex)] = data.icons[tileRegionX][tileRegionY][spriteIndex];
+        }
+      }
+    }
+
+    this.mapLabels = {};
+    for (const tileRegionX of Object.keys(data.labels)) {
+      const x = parseInt(tileRegionX);
+      this.mapLabels[x] = {};
+      for (const tileRegionY of Object.keys(data.labels[tileRegionX])) {
+        const y = parseInt(tileRegionY);
+        this.mapLabels[x][y] = {};
+        for (const z of Object.keys(data.labels[tileRegionX][tileRegionY])) {
+          this.mapLabels[x][y][parseInt(z)] = data.labels[tileRegionX][tileRegionY][z];
+        }
+      }
+    }
+
     this.locationIconsSheet = new Image();
     this.locationIconsSheet.src = "/map/icons/map_icons.webp";
     this.locationIconsSheet.onload = () => {
@@ -181,7 +206,7 @@ export class CanvasMap extends BaseElement {
   }
 
   requestUpdate() {
-    this.updateRequested = true;
+    this.updateRequested = 1;
   }
 
   cantor(x, y) {
@@ -193,9 +218,9 @@ export class CanvasMap extends BaseElement {
     const elapsed = timestamp - this.previousFrameTime;
     this.previousFrameTime = timestamp;
 
-    if (this.updateRequested && elapsed > 0) {
+    if (this.updateRequested-- > 0 && elapsed > 0) {
       // Handle the camera panning
-      const panStopThreshold = 0.005;
+      const panStopThreshold = 0.001;
       const speed = this.cursor.dx * this.cursor.dx + this.cursor.dy * this.cursor.dy;
       if (!this.camera.isDragging) {
         if (speed > panStopThreshold) {
@@ -257,6 +282,7 @@ export class CanvasMap extends BaseElement {
       const isPanningABigDistance = !zooming && distanceLeftToTravel > 10;
       this.drawTilesInCurrentView(!isPanningABigDistance);
       this.drawLocations();
+      this.drawMapAreaLabels();
 
       this.drawTileMarkers(this.playerMarkers.values(), {
         fillColor: "#348feb",
@@ -275,7 +301,7 @@ export class CanvasMap extends BaseElement {
       this.drawCursorTile();
     }
 
-    this.updateRequested = doAnotherUpdate;
+    this.updateRequested = doAnotherUpdate ? Math.max(1, this.updateRequested) : this.updateRequested;
     window.requestAnimationFrame(this.update);
   }
 
@@ -375,23 +401,66 @@ export class CanvasMap extends BaseElement {
     if (!this.locations) return;
     const imageSize = 15;
     const imageSizeHalf = imageSize / 2;
+    // Scale the location icons down with zoom down up to a maximum. Larger number here means a smaller icon.
+    const scale = Math.min(this.camera.zoom.current, 3);
+    const shift = imageSizeHalf / scale;
+    const destinationSize = imageSize / scale;
+
     for (const tile of this.tilesInView) {
-      const locations = this.locations[tile.regionX.toString()]?.[tile.regionY.toString()];
+      const locations = this.locations[tile.regionX]?.[tile.regionY];
       if (locations) {
         for (const [spriteIndex, coordinates] of Object.entries(locations)) {
           for (let i = 0; i < coordinates.length; i += 2) {
             const [x, y] = this.gamePositionToCanvas(coordinates[i], coordinates[i + 1]);
             this.ctx.drawImage(
               this.locationIconsSheet,
-              imageSize * parseInt(spriteIndex),
+              imageSize * spriteIndex,
               0,
               imageSize,
               imageSize,
-              x - imageSizeHalf,
-              y - imageSizeHalf,
-              imageSize,
-              imageSize
+              Math.round(x - shift),
+              Math.round(y - shift),
+              destinationSize,
+              destinationSize
             );
+          }
+        }
+      }
+    }
+  }
+
+  drawMapAreaLabels() {
+    if (!this.mapLabels) return;
+    this.mapLabelImages = this.mapLabelImages || new Map();
+    const scale = Math.min(this.camera.zoom.current, 2);
+
+    for (const tile of this.tilesInView) {
+      const labels = this.mapLabels[tile.regionX]?.[tile.regionY]?.[this.plane - 1];
+      if (labels) {
+        for (let i = 0; i < labels.length; i += 3) {
+          const [x, y] = this.gamePositionToCanvas(labels[i], labels[i + 1]);
+          const labelId = labels[i + 2];
+
+          const key = this.cantor(x, y);
+          let mapLabelImage = this.mapLabelImages.get(key);
+          if (!mapLabelImage) {
+            mapLabelImage = new Image();
+            mapLabelImage.src = `/map/labels/${labelId}.webp`;
+            this.mapLabelImages.set(key, mapLabelImage);
+          }
+
+          mapLabelImage.loaded = mapLabelImage.loaded || mapLabelImage.complete;
+          if (mapLabelImage.loaded) {
+            const width = mapLabelImage.width / scale;
+            const height = mapLabelImage.height / scale;
+            const shiftX = width / 2;
+
+            this.ctx.drawImage(mapLabelImage, Math.round(x - shiftX), y, Math.round(width), Math.round(height));
+          } else if (!mapLabelImage.onload) {
+            mapLabelImage.onload = (...args) => {
+              mapLabelImage.loaded = true;
+              this.requestUpdate();
+            };
           }
         }
       }
@@ -457,7 +526,7 @@ export class CanvasMap extends BaseElement {
               // around the tiles.
               this.ctx.clearRect(tileWorldX, -tileWorldY, imageSize, imageSize);
             }
-            this.ctx.drawImage(tile, 0, 0, imageSize, imageSize, tileWorldX, -tileWorldY, imageSize, imageSize);
+            this.ctx.drawImage(tile, tileWorldX, -tileWorldY);
           } catch {}
         } else if (!tile.onload) {
           tile.onload = (...args) => {
@@ -658,11 +727,20 @@ export class CanvasMap extends BaseElement {
 
     let newZoom;
     if (options.zoom === undefined) {
-      newZoom = Math.min(Math.max(this.camera.zoom.target + options.delta, this.camera.minZoom), this.camera.maxZoom);
+      // mouse zoom
+      if (options.delta > 0) {
+        newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) + 1, this.camera.minZoom), this.camera.maxZoom);
+      } else {
+        newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) - 1, this.camera.minZoom), this.camera.maxZoom);
+      }
     } else {
+      // touch zoom
       newZoom = Math.min(Math.max(options.zoom, this.camera.minZoom), this.camera.maxZoom);
     }
+
     const zoomDelta = newZoom - this.camera.zoom.target;
+    if (zoomDelta === 0) return;
+
     const width = this.canvas.width;
     const height = this.canvas.height;
 
@@ -674,7 +752,6 @@ export class CanvasMap extends BaseElement {
     const wx = (-x - this.camera.x.target) / (width * this.camera.zoom.target);
     const wy = (y - this.camera.y.target) / (height * this.camera.zoom.target);
 
-    const zoomAnimationTime = 100;
     this.camera.x.goTo(this.camera.x.target - wx * width * zoomDelta, options.animationTime || 1);
     this.camera.y.goTo(this.camera.y.target - wy * height * zoomDelta, options.animationTime || 1);
     this.camera.zoom.goTo(newZoom, options.animationTime || 1);
