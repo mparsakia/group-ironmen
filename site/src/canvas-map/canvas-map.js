@@ -220,7 +220,7 @@ export class CanvasMap extends BaseElement {
 
     if (this.updateRequested-- > 0 && elapsed > 0) {
       // Handle the camera panning
-      const panStopThreshold = 0.001;
+      const panStopThreshold = 0.005;
       const speed = this.cursor.dx * this.cursor.dx + this.cursor.dy * this.cursor.dy;
       if (!this.camera.isDragging) {
         if (speed > panStopThreshold) {
@@ -712,7 +712,7 @@ export class CanvasMap extends BaseElement {
   onScroll(event) {
     if (this.camera.isDragging) return;
     this.zoomOntoPoint({
-      delta: -0.025 * Math.sign(event.deltaY) * this.camera.zoom.target,
+      delta: -0.008 * Math.sign(event.deltaY) * this.camera.zoom.target,
       x: this.cursor.x,
       y: this.cursor.y,
       animationTime: 100,
@@ -728,11 +728,13 @@ export class CanvasMap extends BaseElement {
     let newZoom;
     if (options.zoom === undefined) {
       // mouse zoom
-      if (options.delta > 0) {
-        newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) + 1, this.camera.minZoom), this.camera.maxZoom);
-      } else {
-        newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) - 1, this.camera.minZoom), this.camera.maxZoom);
-      }
+      // if (options.delta > 0) {
+      //   newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) + 1, this.camera.minZoom), this.camera.maxZoom);
+      // } else {
+      //   newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) - 1, this.camera.minZoom), this.camera.maxZoom);
+      // }
+      // @mparsakia - older zoom seemed better for our case, restoring
+      newZoom = Math.min(Math.max(this.camera.zoom.target + options.delta, this.camera.minZoom), this.camera.maxZoom);
     } else {
       // touch zoom
       newZoom = Math.min(Math.max(options.zoom, this.camera.minZoom), this.camera.maxZoom);
