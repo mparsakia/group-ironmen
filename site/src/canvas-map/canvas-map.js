@@ -280,9 +280,22 @@ export class CanvasMap extends BaseElement {
           Math.abs((this.camera.y.target - this.camera.y.current) / this.camera.y.time)) /
         this.camera.zoom.current;
       const isPanningABigDistance = !zooming && distanceLeftToTravel > 10;
-      this.drawTilesInCurrentView(!isPanningABigDistance);
+
+      const s = this.tileSize * this.camera.zoom.current;
+      const top = this.camera.y.current / s;
+      const left = this.camera.x.current / s;
+      const right = left + this.canvas.width / s;
+      const bottom = top - this.canvas.height / s;
+      this.view = {
+        left: Math.floor(left),
+        right: Math.ceil(right),
+        top: Math.ceil(top),
+        bottom: Math.floor(bottom),
+      };
+
+      this.drawMapSquaresInView(!isPanningABigDistance);
       this.drawLocations();
-      this.drawMapAreaLabels();
+      this.drawMapAreaLabels(!isPanningABigDistance);
 
       this.drawTileMarkers(this.playerMarkers.values(), {
         fillColor: "#348feb",
@@ -429,65 +442,53 @@ export class CanvasMap extends BaseElement {
     }
   }
 
-  drawMapAreaLabels() {
+  drawMapAreaLabels(loadNewImages) {
     if (!this.mapLabels) return;
     this.mapLabelImages = this.mapLabelImages || new Map();
     const scale = Math.min(this.camera.zoom.current, 2);
 
-    for (const tile of this.tilesInView) {
-      const labels = this.mapLabels[tile.regionX]?.[tile.regionY]?.[this.plane - 1];
-      if (labels) {
-        for (let i = 0; i < labels.length; i += 3) {
-          const [x, y] = this.gamePositionToCanvas(labels[i], labels[i + 1]);
-          const labelId = labels[i + 2];
+    for (let tileX = this.view.left - 1; tileX < this.view.right + 1; ++tileX) {
+      for (let tileY = this.view.top + 1; tileY > this.view.bottom; --tileY) {
+        const labels = this.mapLabels[tileX]?.[tileY]?.[this.plane - 1];
+        if (labels) {
+          for (let i = 0; i < labels.length; i += 3) {
+            const [x, y] = this.gamePositionToCanvas(labels[i], labels[i + 1]);
+            const labelId = labels[i + 2];
 
-          const key = this.cantor(x, y);
-          let mapLabelImage = this.mapLabelImages.get(key);
-          if (!mapLabelImage) {
-            mapLabelImage = new Image();
-            mapLabelImage.src = `/map/labels/${labelId}.webp`;
-            this.mapLabelImages.set(key, mapLabelImage);
-          }
+            const key = this.cantor(x, y);
+            let mapLabelImage = this.mapLabelImages.get(key);
+            if (!mapLabelImage && loadNewImages) {
+              mapLabelImage = new Image();
+              mapLabelImage.src = `/map/labels/${labelId}.webp`;
+              this.mapLabelImages.set(key, mapLabelImage);
+            } else if (!mapLabelImage && !loadNewImages) {
+              continue;
+            }
 
-          mapLabelImage.loaded = mapLabelImage.loaded || mapLabelImage.complete;
-          if (mapLabelImage.loaded) {
-            const width = mapLabelImage.width / scale;
-            const height = mapLabelImage.height / scale;
-            const shiftX = width / 2;
+            mapLabelImage.loaded = mapLabelImage.loaded || mapLabelImage.complete;
+            if (mapLabelImage.loaded) {
+              const width = mapLabelImage.width / scale;
+              const height = mapLabelImage.height / scale;
+              const shiftX = width / 2;
 
-            this.ctx.drawImage(mapLabelImage, Math.round(x - shiftX), y, Math.round(width), Math.round(height));
-          } else if (!mapLabelImage.onload) {
-            mapLabelImage.onload = (...args) => {
-              mapLabelImage.loaded = true;
-              this.requestUpdate();
-            };
+              this.ctx.drawImage(mapLabelImage, Math.round(x - shiftX), y, Math.round(width), Math.round(height));
+            } else if (!mapLabelImage.onload) {
+              mapLabelImage.onload = () => {
+                mapLabelImage.loaded = true;
+                this.requestUpdate();
+              };
+            }
           }
         }
       }
     }
   }
 
-  drawTilesInCurrentView(loadNewTiles) {
-    const s = this.tileSize * this.camera.zoom.current;
-    const top = this.camera.y.current / s;
-    const left = this.camera.x.current / s;
-    const right = left + this.canvas.width / s;
-    const bottom = top - this.canvas.height / s;
-    const region = {
-      left: Math.floor(left),
-      right: Math.ceil(right),
-      top: Math.ceil(top),
-      bottom: Math.floor(bottom),
-    };
-    this.drawTilesInRegion(region, loadNewTiles);
-    this.ctx.globalAlpha = 1;
-  }
-
-  drawTilesInRegion(region, loadNewTiles) {
-    const top = region.top;
-    const left = region.left;
-    const right = region.right;
-    const bottom = region.bottom;
+  drawMapSquaresInView(loadNewTiles) {
+    const top = this.view.top;
+    const left = this.view.left;
+    const right = this.view.right;
+    const bottom = this.view.bottom;
     const tiles = this.tiles[this.plane - 1];
     const imageSize = this.tileSize;
     this.tilesInView = [];
@@ -529,7 +530,7 @@ export class CanvasMap extends BaseElement {
             this.ctx.drawImage(tile, tileWorldX, -tileWorldY);
           } catch {}
         } else if (!tile.onload) {
-          tile.onload = (...args) => {
+          tile.onload = () => {
             tile.animation = new Animation({ current: 0, target: 1, time: 300 });
             tile.loaded = true;
             this.requestUpdate();
@@ -539,6 +540,8 @@ export class CanvasMap extends BaseElement {
         }
       }
     }
+
+    this.ctx.globalAlpha = 1;
   }
 
   showPlane(plane) {
@@ -608,7 +611,7 @@ export class CanvasMap extends BaseElement {
     this.requestUpdate();
   }
 
-  onPointerUp(_event) {
+  onPointerUp() {
     this.stopDragging();
   }
 
