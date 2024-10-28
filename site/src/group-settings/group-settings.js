@@ -67,8 +67,7 @@ export class GroupSettings extends BaseElement {
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
       checkbox.addEventListener("change", () => {
-        item.style.opacity = checkbox.checked ? "1" : "0.2";
-        console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
+        item.style.opacity = checkbox.checked ? "1" : "0.5";
       });
 
 
@@ -86,18 +85,24 @@ export class GroupSettings extends BaseElement {
 
   handleDragStart(event) {
     event.dataTransfer.setData("text/plain", event.target.dataset.name);
-    console.log(`Dragging ${event.target.dataset.name}`);
   }
 
   handleDragOver(event) {
     event.preventDefault();
     const target = event.currentTarget;
-    target.style.border = "2px dashed #000"; // Add dashed border to indicate drop zone
+    target.style.border = "2px dashed #ebce86"; // dropzone
   }
 
   handleDragLeave(event) {
     const target = event.currentTarget;
-    target.style.border = "1px solid gray"; // Reset border when leaving the drop zone
+    target.style.border = "1px solid #625b58";
+  }
+
+  handleDragEnd(event) {
+    const items = this.querySelectorAll(".draggable-member-list > div");
+    items.forEach(item => {
+      item.style.border = "1px solid #625b58"; // reset
+    });
   }
 
   handleDrop(event) {
@@ -120,15 +125,11 @@ export class GroupSettings extends BaseElement {
       // Update local storage with new order
       const newOrder = items.map(item => item.dataset.name);
       localStorage.setItem("memberOrder", JSON.stringify(newOrder));
-      console.log(`Updated member order: ${newOrder}`);
 
       // Update the text input with the new order
       const memberOrderInput = this.querySelector(".group-settings__member-order");
       memberOrderInput.value = newOrder.join(",");
     }
-
-    // Reset border after drop
-    event.target.style.border = "1px solid gray";
   }
 
   disconnectedCallback() {
