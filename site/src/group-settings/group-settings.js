@@ -48,6 +48,18 @@ export class GroupSettings extends BaseElement {
   renderDragAndDropList(memberOrder) {
     const listContainer = document.createElement("div");
     listContainer.classList.add("draggable-member-list");
+    listContainer.style.display = "inline-block";
+    listContainer.style.marginRight = "8px";
+    listContainer.style.padding = "8px"; 
+    listContainer.style.border = "1px solid #393939";
+    listContainer.style.borderRadius = "8px";
+
+    const inputs = listContainer.querySelectorAll("input[type='checkbox']");
+    inputs.forEach(input => {
+      input.style.display = "inline-block";
+      input.style.marginRight = "8px";
+    });
+
 
     memberOrder.forEach(name => {
       const item = document.createElement("div");
@@ -67,8 +79,7 @@ export class GroupSettings extends BaseElement {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
-      checkbox.style.all = "initial"; // Reset all styles
-      checkbox.style.marginRight = "8px"; // Add margin for spacing
+      checkbox.style.marginRight = "8px"; 
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           item.dataset.name = name.replace(/^-/, '');
@@ -82,7 +93,7 @@ export class GroupSettings extends BaseElement {
 
 
       item.appendChild(checkbox);
-
+      
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
       item.addEventListener("dragleave", this.handleDragLeave.bind(this));
