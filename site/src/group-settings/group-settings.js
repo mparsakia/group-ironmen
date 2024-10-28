@@ -49,16 +49,6 @@ export class GroupSettings extends BaseElement {
     const listContainer = document.createElement("div");
     listContainer.classList.add("draggable-member-list");
 
-    // Add component-specific styles
-    const style = document.createElement('style');
-    style.textContent = `
-      .draggable-member-list input[type="checkbox"] {
-        display: inline-block;
-        margin-right: 8px;
-      }
-    `;
-    this.shadowRoot.appendChild(style);
-
     memberOrder.forEach(name => {
       const item = document.createElement("div");
       item.style.display = "flex";
@@ -75,6 +65,8 @@ export class GroupSettings extends BaseElement {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
+      checkbox.style.all = "initial"; // Reset all styles
+      checkbox.style.marginRight = "8px"; // Add margin for spacing
       checkbox.addEventListener("change", () => {
         item.style.opacity = checkbox.checked ? "1" : "0.2";
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);

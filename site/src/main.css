@@ -197,6 +197,11 @@ input[type="radio"] {
   display: none;
 }
 
+.draggable-member-list input[type="checkbox"] {
+  display: inline-block;
+  margin-right: 8px;
+}
+
 input[type="checkbox"] + label,
 input[type="radio"] + label {
   display: flex;
