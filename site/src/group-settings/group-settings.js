@@ -27,11 +27,11 @@ export class GroupSettings extends BaseElement {
     this.eventListener(this.appearanceStyle, "change", this.handleStyleChange.bind(this));
     
     const orderFieldset = this.querySelector(".group-settings__order");
+    const memberOrderInput = this.querySelector(".group-settings__member-order");
     const setOrderButton = this.querySelector(".group-settings__set-order");
-    if (orderFieldset && setOrderButton) {
+    if (orderFieldset && memberOrderInput && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
-        const memberOrder = Array.from(this.memberSection.querySelectorAll("li"))
-          .map(item => item.dataset.name);
+        const memberOrder = memberOrderInput.value.split(",").map(item => item.trim()).filter(item => item) || [];
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
         window.location.reload();
@@ -39,14 +39,18 @@ export class GroupSettings extends BaseElement {
 
       const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
       if (storedMemberOrder.length > 0) {
-        this.renderMemberList(storedMemberOrder);
+        memberOrderInput.value = storedMemberOrder.join(",");
       }
+
+      // Add new drag-and-drop list with checkboxes
+      this.renderDragAndDropList(storedMemberOrder);
     }
   }
 
-  renderMemberList(memberOrder) {
-    this.memberSection.innerHTML = "";
-    const fragment = document.createDocumentFragment();
+  renderDragAndDropList(memberOrder) {
+    const listContainer = document.createElement("ul");
+    listContainer.classList.add("draggable-member-list");
+
     memberOrder.forEach(name => {
       const li = document.createElement("li");
       li.dataset.name = name;
@@ -68,9 +72,11 @@ export class GroupSettings extends BaseElement {
       li.addEventListener("dragstart", this.handleDragStart.bind(this));
       li.addEventListener("dragover", this.handleDragOver.bind(this));
       li.addEventListener("drop", this.handleDrop.bind(this));
-      fragment.appendChild(li);
+      listContainer.appendChild(li);
     });
-    this.memberSection.appendChild(fragment);
+
+    const orderFieldset = this.querySelector(".group-settings__order");
+    orderFieldset.appendChild(listContainer);
   }
 
   handleDragStart(event) {
@@ -86,7 +92,7 @@ export class GroupSettings extends BaseElement {
     const draggedName = event.dataTransfer.getData("text/plain");
     const targetName = event.target.dataset.name;
 
-    const items = Array.from(this.memberSection.querySelectorAll("li"));
+    const items = Array.from(this.querySelectorAll(".draggable-member-list li"));
     const draggedIndex = items.findIndex(item => item.dataset.name === draggedName);
     const targetIndex = items.findIndex(item => item.dataset.name === targetName);
 
@@ -94,8 +100,9 @@ export class GroupSettings extends BaseElement {
       const [draggedItem] = items.splice(draggedIndex, 1);
       items.splice(targetIndex, 0, draggedItem);
 
-      this.memberSection.innerHTML = "";
-      items.forEach(item => this.memberSection.appendChild(item));
+      const listContainer = this.querySelector(".draggable-member-list");
+      listContainer.innerHTML = "";
+      items.forEach(item => listContainer.appendChild(item));
     }
   }
 
@@ -120,8 +127,24 @@ export class GroupSettings extends BaseElement {
 
   handleUpdatedMembers(members) {
     members = members.filter((member) => member.name !== "@SHARED");
-    const memberNames = members.map(member => member.name);
-    this.renderMemberList(memberNames);
+    let memberEdits = document.createDocumentFragment();
+    for (let i = 0; i < members.length; ++i) {
+      const member = members[i];
+      const memberEdit = document.createElement("edit-member");
+      memberEdit.member = member;
+      memberEdit.memberNumber = i + 1;
+
+      memberEdits.appendChild(memberEdit);
+    }
+
+    if (members.length < 12) {
+      const addMember = document.createElement("edit-member");
+      addMember.memberNumber = members.length + 1;
+      memberEdits.appendChild(addMember);
+    }
+
+    this.memberSection.innerHTML = "";
+    this.memberSection.appendChild(memberEdits);
   }
 }
 
