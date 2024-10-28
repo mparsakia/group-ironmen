@@ -53,13 +53,14 @@ export class GroupSettings extends BaseElement {
       const item = document.createElement("div");
       item.style.display = "flex";
       item.style.alignItems = "center";
-      item.style.marginBottom = "8px"; // Add margin between items
-      item.style.padding = "8px"; // Add padding
-      item.style.opacity = name.startsWith('-') ? "0.2" : "1"; // Apply opacity if name starts with '-'
-      item.style.border = "1px solid gray"; // Add border
-      item.style.borderRadius = "8px"; // Add border radius
-      item.style.cursor = "move"; // Indicate draggable area
+      item.style.marginBottom = "8px"; 
+      item.style.padding = "8px"; 
+      item.style.opacity = name.startsWith('-') ? "0.5" : "1"; 
+      item.style.border = "1px solid #625b58"; 
+      item.style.borderRadius = "8px"; 
+      item.style.cursor = "move";
       item.dataset.name = name;
+      item.textContent = name;
       item.draggable = true;
 
       const checkbox = document.createElement("input");
@@ -70,12 +71,8 @@ export class GroupSettings extends BaseElement {
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
       });
 
-      const label = document.createElement("span");
-      label.textContent = name;
 
       item.appendChild(checkbox);
-      item.appendChild(label);
-
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
       item.addEventListener("dragleave", this.handleDragLeave.bind(this));

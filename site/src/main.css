@@ -197,6 +197,7 @@ input[type="radio"] {
   display: none;
 }
 
+/* group-settings.js dnd override */
 .draggable-member-list input[type="checkbox"] {
   display: inline-block;
   margin-right: 8px;
