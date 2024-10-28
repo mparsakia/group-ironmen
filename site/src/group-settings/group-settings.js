@@ -31,19 +31,18 @@ export class GroupSettings extends BaseElement {
     const setOrderButton = this.querySelector(".group-settings__set-order");
     if (orderFieldset && memberOrderInput && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
-        const memberOrder = memberOrderInput.value.split(",").map(item => item.trim()).filter(item => item) || [];
+        const memberOrder = Array.from(this.querySelectorAll(".draggable-member-list li"))
+          .map(item => item.dataset.name);
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
-        window.location.reload();
+        this.renderDragAndDropList(memberOrder); // Re-render the list
       });
 
       const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
       if (storedMemberOrder.length > 0) {
         memberOrderInput.value = storedMemberOrder.join(",");
+        this.renderDragAndDropList(storedMemberOrder);
       }
-
-      // Add new drag-and-drop list with checkboxes
-      this.renderDragAndDropList(storedMemberOrder);
     }
   }
 
@@ -55,6 +54,7 @@ export class GroupSettings extends BaseElement {
       const li = document.createElement("li");
       li.dataset.name = name;
       li.draggable = true;
+      li.style.padding = "8px 0"; // Add vertical padding
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
@@ -76,6 +76,7 @@ export class GroupSettings extends BaseElement {
     });
 
     const orderFieldset = this.querySelector(".group-settings__order");
+    orderFieldset.innerHTML = ""; // Clear existing content
     orderFieldset.appendChild(listContainer);
   }
 
@@ -137,7 +138,7 @@ export class GroupSettings extends BaseElement {
       memberEdits.appendChild(memberEdit);
     }
 
-    if (members.length < 12) {
+    if (members.length < 12 ) {
       const addMember = document.createElement("edit-member");
       addMember.memberNumber = members.length + 1;
       memberEdits.appendChild(addMember);
