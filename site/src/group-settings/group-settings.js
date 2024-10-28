@@ -50,14 +50,10 @@ export class GroupSettings extends BaseElement {
     listContainer.classList.add("draggable-member-list");
 
     memberOrder.forEach(name => {
-      const item = document.createElement("div");
-      item.dataset.name = name;
-      item.draggable = true;
-      item.style.padding = "8px 0"; // Add vertical padding
-      item.style.opacity = name.startsWith('-') ? "0.2" : "1"; // Apply opacity if name starts with '-'
-      item.style.border = "1px solid gray"; // Add border
-      item.style.borderRadius = "8px"; // Add border radius
-      item.style.marginBottom = "4px"; // Add margin between items
+      const itemContainer = document.createElement("div");
+      itemContainer.style.display = "flex";
+      itemContainer.style.alignItems = "center";
+      itemContainer.style.marginBottom = "8px"; // Add margin between items
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
@@ -70,16 +66,26 @@ export class GroupSettings extends BaseElement {
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
       });
 
+      const item = document.createElement("div");
+      item.dataset.name = name;
+      item.draggable = true;
+      item.style.padding = "8px 0"; // Add vertical padding
+      item.style.opacity = name.startsWith('-') ? "0.2" : "1"; // Apply opacity if name starts with '-'
+      item.style.border = "1px solid gray"; // Add border
+      item.style.borderRadius = "8px"; // Add border radius
+      item.style.flexGrow = "1"; // Allow item to grow
+
       const label = document.createElement("label");
       label.textContent = name;
 
-      item.appendChild(checkbox);
       item.appendChild(label);
+      itemContainer.appendChild(checkbox);
+      itemContainer.appendChild(item);
 
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
       item.addEventListener("drop", this.handleDrop.bind(this));
-      listContainer.appendChild(item);
+      listContainer.appendChild(itemContainer);
     });
 
     const orderFieldset = this.querySelector(".group-settings__order");
@@ -93,6 +99,8 @@ export class GroupSettings extends BaseElement {
 
   handleDragOver(event) {
     event.preventDefault();
+    const target = event.currentTarget;
+    target.style.marginTop = "16px"; // Add margin to indicate drop zone
   }
 
   handleDrop(event) {
@@ -100,7 +108,7 @@ export class GroupSettings extends BaseElement {
     const draggedName = event.dataTransfer.getData("text/plain");
     const targetName = event.target.dataset.name;
 
-    const items = Array.from(this.querySelectorAll(".draggable-member-list div"));
+    const items = Array.from(this.querySelectorAll(".draggable-member-list div div"));
     const draggedIndex = items.findIndex(item => item.dataset.name === draggedName);
     const targetIndex = items.findIndex(item => item.dataset.name === targetName);
 
@@ -110,7 +118,7 @@ export class GroupSettings extends BaseElement {
 
       const listContainer = this.querySelector(".draggable-member-list");
       listContainer.innerHTML = "";
-      items.forEach(item => listContainer.appendChild(item));
+      items.forEach(item => listContainer.appendChild(item.parentElement));
 
       // Update local storage with new order
       const newOrder = items.map(item => item.dataset.name);
@@ -121,6 +129,9 @@ export class GroupSettings extends BaseElement {
       const memberOrderInput = this.querySelector(".group-settings__member-order");
       memberOrderInput.value = newOrder.join(",");
     }
+
+    // Reset margin after drop
+    event.target.style.marginTop = "0";
   }
 
   disconnectedCallback() {
