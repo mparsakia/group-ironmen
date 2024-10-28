@@ -36,16 +36,10 @@ export class GroupSettings extends BaseElement {
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
         window.location.reload();
       });
-
-      const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
-      if (storedMemberOrder.length > 0) {
-        memberOrderInput.value = storedMemberOrder.join(",");
-        this.renderDragAndDropList(storedMemberOrder);
-      }
     }
   }
 
-  renderDragAndDropList(memberOrder) {
+  renderDragAndDropList(members) {
     const listContainer = document.createElement("div");
     listContainer.classList.add("draggable-member-list");
     listContainer.style.display = "flex";
@@ -55,7 +49,8 @@ export class GroupSettings extends BaseElement {
     listContainer.style.border = "1px solid #393939";
     listContainer.style.borderRadius = "8px";
 
-    memberOrder.forEach(name => {
+    members.forEach(member => {
+      const name = member.name;
       const item = document.createElement("div");
       item.style.display = "flex";
       item.style.alignItems = "center";
@@ -176,6 +171,8 @@ export class GroupSettings extends BaseElement {
 
   handleUpdatedMembers(members) {
     members = members.filter((member) => member.name !== "@SHARED");
+    this.renderDragAndDropList(members);
+    
     let memberEdits = document.createDocumentFragment();
     for (let i = 0; i < members.length; ++i) {
       const member = members[i];
@@ -186,7 +183,7 @@ export class GroupSettings extends BaseElement {
       memberEdits.appendChild(memberEdit);
     }
 
-    if (members.length < 12 ) {
+    if (members.length < 12) {
       const addMember = document.createElement("edit-member");
       addMember.memberNumber = members.length + 1;
       memberEdits.appendChild(addMember);
