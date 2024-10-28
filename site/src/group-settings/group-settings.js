@@ -31,11 +31,10 @@ export class GroupSettings extends BaseElement {
     const setOrderButton = this.querySelector(".group-settings__set-order");
     if (orderFieldset && memberOrderInput && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
-        const memberOrder = Array.from(this.querySelectorAll(".draggable-member-list li"))
-          .map(item => item.dataset.name);
+        const memberOrder = memberOrderInput.value.split(",").map(item => item.trim()).filter(item => item) || [];
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
-        this.renderDragAndDropList(memberOrder); // Re-render the list
+        window.location.reload();
       });
 
       const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
@@ -54,13 +53,15 @@ export class GroupSettings extends BaseElement {
       const li = document.createElement("li");
       li.dataset.name = name;
       li.draggable = true;
-      li.style.padding = "8px 0"; // Add vertical padding
+      li.style.padding = "8px 0";
+      li.style.opacity = name.startsWith('-') ? "0.2" : "1";
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
-      checkbox.checked = true;
+      checkbox.checked = !name.startsWith('-');
       checkbox.addEventListener("change", () => {
-        li.style.display = checkbox.checked ? "block" : "none";
+        li.style.opacity = checkbox.checked ? "1" : "0.2";
+        console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
       });
 
       const label = document.createElement("label");
@@ -76,12 +77,12 @@ export class GroupSettings extends BaseElement {
     });
 
     const orderFieldset = this.querySelector(".group-settings__order");
-    orderFieldset.innerHTML = ""; // Clear existing content
     orderFieldset.appendChild(listContainer);
   }
 
   handleDragStart(event) {
     event.dataTransfer.setData("text/plain", event.target.dataset.name);
+    console.log(`Dragging ${event.target.dataset.name}`);
   }
 
   handleDragOver(event) {
@@ -104,6 +105,10 @@ export class GroupSettings extends BaseElement {
       const listContainer = this.querySelector(".draggable-member-list");
       listContainer.innerHTML = "";
       items.forEach(item => listContainer.appendChild(item));
+
+      const newOrder = items.map(item => item.dataset.name);
+      localStorage.setItem("memberOrder", JSON.stringify(newOrder));
+      console.log(`Updated member order: ${newOrder}`);
     }
   }
 
