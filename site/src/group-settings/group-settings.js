@@ -58,9 +58,8 @@ export class GroupSettings extends BaseElement {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
-      checkbox.style.margin = "0 8px 0 0"; // Reset margin
-      checkbox.style.padding = "0"; // Reset padding
-      checkbox.style.appearance = "auto"; // Reset appearance to default
+      checkbox.style.all = "initial"; // Reset all styles
+      checkbox.style.margin = "0 8px 0 0"; // Add margin for spacing
       checkbox.addEventListener("change", () => {
         item.style.opacity = checkbox.checked ? "1" : "0.2";
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
@@ -84,6 +83,7 @@ export class GroupSettings extends BaseElement {
 
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
+      item.addEventListener("dragleave", this.handleDragLeave.bind(this));
       item.addEventListener("drop", this.handleDrop.bind(this));
       listContainer.appendChild(itemContainer);
     });
@@ -101,6 +101,11 @@ export class GroupSettings extends BaseElement {
     event.preventDefault();
     const target = event.currentTarget;
     target.style.marginTop = "16px"; // Add margin to indicate drop zone
+  }
+
+  handleDragLeave(event) {
+    const target = event.currentTarget;
+    target.style.marginTop = "0"; // Reset margin when leaving the drop zone
   }
 
   handleDrop(event) {
