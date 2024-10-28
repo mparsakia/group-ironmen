@@ -65,8 +65,6 @@ export class GroupSettings extends BaseElement {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
-      checkbox.style.all = "initial"; // Reset all styles
-      checkbox.style.marginRight = "8px"; // Add margin for spacing
       checkbox.addEventListener("change", () => {
         item.style.opacity = checkbox.checked ? "1" : "0.2";
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
