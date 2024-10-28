@@ -206,8 +206,12 @@ export class GroupSettings extends BaseElement {
   
     // Update the input with the current order
     memberOrderInput.value = orderedMembers.map(m => m.name).join(',');
-  
-    // Render the list with ordered members
+
+    // Additionally update the local storage with the new info or fallback to empty array
+    const memberOrder = orderedMembers.length > 0 ? orderedMembers.map(m => m.name) : [];
+    localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
+
+    // Render dnd panel
     this.renderDragAndDropList(orderedMembers);
   
     // Render the members edits (update edit area, with the members param as it was)
@@ -230,7 +234,6 @@ export class GroupSettings extends BaseElement {
     this.memberSection.innerHTML = "";
     this.memberSection.appendChild(memberEdits);
   }
-
 }
 
 customElements.define("group-settings", GroupSettings);
