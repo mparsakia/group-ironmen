@@ -48,18 +48,12 @@ export class GroupSettings extends BaseElement {
   renderDragAndDropList(memberOrder) {
     const listContainer = document.createElement("div");
     listContainer.classList.add("draggable-member-list");
-    listContainer.style.display = "inline-block";
+    listContainer.style.display = "flex";
+    listContainer.style.flexDirection = "column";
     listContainer.style.marginRight = "8px";
     listContainer.style.padding = "8px"; 
     listContainer.style.border = "1px solid #393939";
     listContainer.style.borderRadius = "8px";
-
-    const inputs = listContainer.querySelectorAll("input[type='checkbox']");
-    inputs.forEach(input => {
-      input.style.display = "inline-block";
-      input.style.marginRight = "8px";
-    });
-
 
     memberOrder.forEach(name => {
       const item = document.createElement("div");
@@ -73,13 +67,13 @@ export class GroupSettings extends BaseElement {
       item.style.cursor = "move";
       item.dataset.name = name;
       item.draggable = true;
-      item.textContent = name.replace(/^-/, '');
 
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
       checkbox.style.marginRight = "8px"; 
+      checkbox.style.display = "inline-block !important"; // Ensure checkbox is visible
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           item.dataset.name = name.replace(/^-/, '');
@@ -91,9 +85,11 @@ export class GroupSettings extends BaseElement {
         this.updateMemberOrderInput();
       });
 
+      item.textContent = name.replace(/^-/, '');
+
 
       item.appendChild(checkbox);
-      
+
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
       item.addEventListener("dragleave", this.handleDragLeave.bind(this));
