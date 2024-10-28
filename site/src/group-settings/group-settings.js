@@ -60,22 +60,34 @@ export class GroupSettings extends BaseElement {
       item.style.borderRadius = "8px"; 
       item.style.cursor = "move";
       item.dataset.name = name;
-      item.textContent = name;
       item.draggable = true;
+      item.textContent = name.replace(/^-/, '');
+
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
+      checkbox.style.all = "initial"; // Reset all styles
+      checkbox.style.marginRight = "8px"; // Add margin for spacing
       checkbox.addEventListener("change", () => {
-        item.style.opacity = checkbox.checked ? "1" : "0.5";
+        if (checkbox.checked) {
+          item.dataset.name = name.replace(/^-/, '');
+          item.style.opacity = "1";
+        } else {
+          item.dataset.name = `-${name.replace(/^-/, '')}`;
+          item.style.opacity = "0.5";
+        }
+        this.updateMemberOrderInput();
       });
 
 
       item.appendChild(checkbox);
+
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
       item.addEventListener("dragleave", this.handleDragLeave.bind(this));
       item.addEventListener("drop", this.handleDrop.bind(this));
+      item.addEventListener("dragend", this.handleDragEnd.bind(this)); 
       listContainer.appendChild(item);
     });
 
@@ -90,12 +102,12 @@ export class GroupSettings extends BaseElement {
   handleDragOver(event) {
     event.preventDefault();
     const target = event.currentTarget;
-    target.style.border = "2px dashed #ebce86"; // dropzone
+    target.style.border = "2px dashed #9e5b36"; // dropzone
   }
 
   handleDragLeave(event) {
     const target = event.currentTarget;
-    target.style.border = "1px solid #625b58";
+    target.style.border = "1px solid #625b58"; // reset
   }
 
   handleDragEnd(event) {
@@ -127,9 +139,17 @@ export class GroupSettings extends BaseElement {
       localStorage.setItem("memberOrder", JSON.stringify(newOrder));
 
       // Update the text input with the new order
-      const memberOrderInput = this.querySelector(".group-settings__member-order");
-      memberOrderInput.value = newOrder.join(",");
+      this.updateMemberOrderInput();
     }
+
+    event.target.style.border = "1px solid #625b58"; // reset
+  }
+
+  updateMemberOrderInput() {
+    const items = Array.from(this.querySelectorAll(".draggable-member-list > div"));
+    const newOrder = items.map(item => item.dataset.name);
+    const memberOrderInput = this.querySelector(".group-settings__member-order");
+    memberOrderInput.value = newOrder.join(",");
   }
 
   disconnectedCallback() {
