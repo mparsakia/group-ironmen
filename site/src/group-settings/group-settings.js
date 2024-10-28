@@ -59,7 +59,7 @@ export class GroupSettings extends BaseElement {
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
       checkbox.style.all = "initial"; // Reset all styles
-      checkbox.style.margin = "0 8px 0 0"; // Add margin for spacing
+      checkbox.style.marginRight = "8px"; // Add margin for spacing
       checkbox.addEventListener("change", () => {
         item.style.opacity = checkbox.checked ? "1" : "0.2";
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
@@ -68,11 +68,12 @@ export class GroupSettings extends BaseElement {
       const item = document.createElement("div");
       item.dataset.name = name;
       item.draggable = true;
-      item.style.padding = "8px 0"; // Add vertical padding
+      item.style.padding = "8px"; // Add padding
       item.style.opacity = name.startsWith('-') ? "0.2" : "1"; // Apply opacity if name starts with '-'
       item.style.border = "1px solid gray"; // Add border
       item.style.borderRadius = "8px"; // Add border radius
       item.style.flexGrow = "1"; // Allow item to grow
+      item.style.cursor = "move"; // Indicate draggable area
 
       const label = document.createElement("label");
       label.textContent = name;
@@ -100,12 +101,12 @@ export class GroupSettings extends BaseElement {
   handleDragOver(event) {
     event.preventDefault();
     const target = event.currentTarget;
-    target.style.marginTop = "16px"; // Add margin to indicate drop zone
+    target.style.border = "2px dashed #000"; // Add dashed border to indicate drop zone
   }
 
   handleDragLeave(event) {
     const target = event.currentTarget;
-    target.style.marginTop = "0"; // Reset margin when leaving the drop zone
+    target.style.border = "1px solid gray"; // Reset border when leaving the drop zone
   }
 
   handleDrop(event) {
@@ -135,8 +136,8 @@ export class GroupSettings extends BaseElement {
       memberOrderInput.value = newOrder.join(",");
     }
 
-    // Reset margin after drop
-    event.target.style.marginTop = "0";
+    // Reset border after drop
+    event.target.style.border = "1px solid gray";
   }
 
   disconnectedCallback() {
