@@ -68,12 +68,10 @@ export class GroupSettings extends BaseElement {
       item.dataset.name = name;
       item.draggable = true;
 
-
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
       checkbox.style.marginRight = "8px"; 
-      checkbox.style.display = "inline-block !important"; // Ensure checkbox is visible
       checkbox.addEventListener("change", () => {
         if (checkbox.checked) {
           item.dataset.name = name.replace(/^-/, '');
@@ -85,10 +83,8 @@ export class GroupSettings extends BaseElement {
         this.updateMemberOrderInput();
       });
 
-      item.textContent = name.replace(/^-/, '');
-
-
       item.appendChild(checkbox);
+      item.appendChild(document.createTextNode(name.replace(/^-/, '')));
 
       item.addEventListener("dragstart", this.handleDragStart.bind(this));
       item.addEventListener("dragover", this.handleDragOver.bind(this));
