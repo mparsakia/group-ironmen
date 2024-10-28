@@ -176,59 +176,61 @@ export class GroupSettings extends BaseElement {
 
   handleUpdatedMembers(members) {
     members = members.filter((member) => member.name !== "@SHARED");
-    
+  
     // Get stored order from localStorage
     const storedOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
     const memberOrderInput = this.querySelector(".group-settings__member-order");
-    
-    // Create a map of member names to member objects
-    const memberMap = new Map(members.map(m => [m.name.replace(/^-/, ''), m]));
-    
-    // Create a new array based on stored order, only including existing members
-    const orderedMembers = storedOrder
-      .filter(name => memberMap.has(name.replace(/^-/, '')))
-      .map(name => {
-        const member = { ...memberMap.get(name.replace(/^-/, '')) };
-        if (name.startsWith('-')) {
-          member.name = `-${member.name}`;
-        }
-        return member;
-      });
-    
+  
+    // Extract member names from the incoming members array
+    const memberNames = members.map(member => member.name);
+  
+    // Filter stored order to only include names that exist in the incoming members
+    const filteredStoredOrder = storedOrder.filter(name => 
+      memberNames.includes(name.replace(/^-/, ''))
+    );
+  
+    // Create ordered members array based on filtered stored order
+    const orderedMembers = filteredStoredOrder.map(name => {
+      const member = members.find(m => m.name === name.replace(/^-/, ''));
+      return name.startsWith('-') ? { ...member, name: `-${member.name}` } : member;
+    });
+  
     // Add any new members that weren't in the stored order
     members.forEach(member => {
-      if (!storedOrder.some(name => 
-        name.replace(/^-/, '') === member.name.replace(/^-/, '')
+      if (!filteredStoredOrder.some(name => 
+        name.replace(/^-/, '') === member.name
       )) {
         orderedMembers.push(member);
       }
     });
-
+  
     // Update the input with the current order
     memberOrderInput.value = orderedMembers.map(m => m.name).join(',');
-    
+  
     // Render the list with ordered members
     this.renderDragAndDropList(orderedMembers);
-    
-    // Update member edits with ordered members
+  
+    // Render the members edits (update edit area, with the members param as it was)
     let memberEdits = document.createDocumentFragment();
-    for (let i = 0; i < orderedMembers.length; ++i) {
-      const member = orderedMembers[i];
+    for (let i = 0; i < members.length; ++i) {
+      const member = members[i];
       const memberEdit = document.createElement("edit-member");
       memberEdit.member = member;
       memberEdit.memberNumber = i + 1;
+  
       memberEdits.appendChild(memberEdit);
     }
-
-    if (orderedMembers.length < 12) {
+  
+    if (members.length < 12) {
       const addMember = document.createElement("edit-member");
-      addMember.memberNumber = orderedMembers.length + 1;
+      addMember.memberNumber = members.length + 1;
       memberEdits.appendChild(addMember);
     }
-
+  
     this.memberSection.innerHTML = "";
     this.memberSection.appendChild(memberEdits);
   }
+
 }
 
 customElements.define("group-settings", GroupSettings);
