@@ -46,34 +46,40 @@ export class GroupSettings extends BaseElement {
   }
 
   renderDragAndDropList(memberOrder) {
-    const listContainer = document.createElement("ul");
+    const listContainer = document.createElement("div");
     listContainer.classList.add("draggable-member-list");
 
     memberOrder.forEach(name => {
-      const li = document.createElement("li");
-      li.dataset.name = name;
-      li.draggable = true;
-      li.style.padding = "8px 0";
-      li.style.opacity = name.startsWith('-') ? "0.2" : "1";
+      const item = document.createElement("div");
+      item.dataset.name = name;
+      item.draggable = true;
+      item.style.padding = "8px 0"; // Add vertical padding
+      item.style.opacity = name.startsWith('-') ? "0.2" : "1"; // Apply opacity if name starts with '-'
+      item.style.border = "1px solid gray"; // Add border
+      item.style.borderRadius = "8px"; // Add border radius
+      item.style.marginBottom = "4px"; // Add margin between items
 
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = !name.startsWith('-');
+      checkbox.style.margin = "0 8px 0 0"; // Reset margin
+      checkbox.style.padding = "0"; // Reset padding
+      checkbox.style.appearance = "auto"; // Reset appearance to default
       checkbox.addEventListener("change", () => {
-        li.style.opacity = checkbox.checked ? "1" : "0.2";
+        item.style.opacity = checkbox.checked ? "1" : "0.2";
         console.log(`Checkbox for ${name} is now ${checkbox.checked ? 'checked' : 'unchecked'}`);
       });
 
       const label = document.createElement("label");
       label.textContent = name;
 
-      li.appendChild(checkbox);
-      li.appendChild(label);
+      item.appendChild(checkbox);
+      item.appendChild(label);
 
-      li.addEventListener("dragstart", this.handleDragStart.bind(this));
-      li.addEventListener("dragover", this.handleDragOver.bind(this));
-      li.addEventListener("drop", this.handleDrop.bind(this));
-      listContainer.appendChild(li);
+      item.addEventListener("dragstart", this.handleDragStart.bind(this));
+      item.addEventListener("dragover", this.handleDragOver.bind(this));
+      item.addEventListener("drop", this.handleDrop.bind(this));
+      listContainer.appendChild(item);
     });
 
     const orderFieldset = this.querySelector(".group-settings__order");
@@ -94,7 +100,7 @@ export class GroupSettings extends BaseElement {
     const draggedName = event.dataTransfer.getData("text/plain");
     const targetName = event.target.dataset.name;
 
-    const items = Array.from(this.querySelectorAll(".draggable-member-list li"));
+    const items = Array.from(this.querySelectorAll(".draggable-member-list div"));
     const draggedIndex = items.findIndex(item => item.dataset.name === draggedName);
     const targetIndex = items.findIndex(item => item.dataset.name === targetName);
 
@@ -106,9 +112,14 @@ export class GroupSettings extends BaseElement {
       listContainer.innerHTML = "";
       items.forEach(item => listContainer.appendChild(item));
 
+      // Update local storage with new order
       const newOrder = items.map(item => item.dataset.name);
       localStorage.setItem("memberOrder", JSON.stringify(newOrder));
       console.log(`Updated member order: ${newOrder}`);
+
+      // Update the text input with the new order
+      const memberOrderInput = this.querySelector(".group-settings__member-order");
+      memberOrderInput.value = newOrder.join(",");
     }
   }
 
