@@ -27,11 +27,11 @@ export class GroupSettings extends BaseElement {
     this.eventListener(this.appearanceStyle, "change", this.handleStyleChange.bind(this));
     
     const orderFieldset = this.querySelector(".group-settings__order");
-    const memberOrderInput = this.querySelector(".group-settings__member-order");
     const setOrderButton = this.querySelector(".group-settings__set-order");
-    if(orderFieldset && memberOrderInput && setOrderButton) {
+    if (orderFieldset && setOrderButton) {
       this.eventListener(setOrderButton, "click", () => {
-        const memberOrder = memberOrderInput.value.split(",").map(item => item.trim()).filter(item => item) || [];
+        const memberOrder = Array.from(this.memberSection.querySelectorAll("li"))
+          .map(item => item.dataset.name);
         console.log("Setting member order:", memberOrder);
         localStorage.setItem("memberOrder", JSON.stringify(memberOrder));
         window.location.reload();
@@ -39,9 +39,63 @@ export class GroupSettings extends BaseElement {
 
       const storedMemberOrder = JSON.parse(localStorage.getItem("memberOrder") || "[]");
       if (storedMemberOrder.length > 0) {
-        memberOrderInput.value = storedMemberOrder.join(",");
+        this.renderMemberList(storedMemberOrder);
       }
+    }
+  }
 
+  renderMemberList(memberOrder) {
+    this.memberSection.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+    memberOrder.forEach(name => {
+      const li = document.createElement("li");
+      li.dataset.name = name;
+      li.draggable = true;
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.addEventListener("change", () => {
+        li.style.display = checkbox.checked ? "block" : "none";
+      });
+
+      const label = document.createElement("label");
+      label.textContent = name;
+
+      li.appendChild(checkbox);
+      li.appendChild(label);
+
+      li.addEventListener("dragstart", this.handleDragStart.bind(this));
+      li.addEventListener("dragover", this.handleDragOver.bind(this));
+      li.addEventListener("drop", this.handleDrop.bind(this));
+      fragment.appendChild(li);
+    });
+    this.memberSection.appendChild(fragment);
+  }
+
+  handleDragStart(event) {
+    event.dataTransfer.setData("text/plain", event.target.dataset.name);
+  }
+
+  handleDragOver(event) {
+    event.preventDefault();
+  }
+
+  handleDrop(event) {
+    event.preventDefault();
+    const draggedName = event.dataTransfer.getData("text/plain");
+    const targetName = event.target.dataset.name;
+
+    const items = Array.from(this.memberSection.querySelectorAll("li"));
+    const draggedIndex = items.findIndex(item => item.dataset.name === draggedName);
+    const targetIndex = items.findIndex(item => item.dataset.name === targetName);
+
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+      const [draggedItem] = items.splice(draggedIndex, 1);
+      items.splice(targetIndex, 0, draggedItem);
+
+      this.memberSection.innerHTML = "";
+      items.forEach(item => this.memberSection.appendChild(item));
     }
   }
 
@@ -66,25 +120,8 @@ export class GroupSettings extends BaseElement {
 
   handleUpdatedMembers(members) {
     members = members.filter((member) => member.name !== "@SHARED");
-    let memberEdits = document.createDocumentFragment();
-    for (let i = 0; i < members.length; ++i) {
-      const member = members[i];
-      const memberEdit = document.createElement("edit-member");
-      memberEdit.member = member;
-      memberEdit.memberNumber = i + 1;
-
-      memberEdits.appendChild(memberEdit);
-    }
-
-    if (members.length < 12 ) {
-      const addMember = document.createElement("edit-member");
-      addMember.memberNumber = members.length + 1;
-      memberEdits.appendChild(addMember);
-    }
-
-    this.memberSection.innerHTML = "";
-    this.memberSection.appendChild(memberEdits);
-
+    const memberNames = members.map(member => member.name);
+    this.renderMemberList(memberNames);
   }
 }
 
