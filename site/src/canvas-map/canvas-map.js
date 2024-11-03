@@ -5,6 +5,7 @@ import { Animation } from "./animation";
 export class CanvasMap extends BaseElement {
   constructor() {
     super();
+    this.showLabelsAndIcons = true;  // @mparsakia - toggle labels and icons
   }
 
   html() {
@@ -14,6 +15,13 @@ export class CanvasMap extends BaseElement {
   connectedCallback() {
     super.connectedCallback();
     this.render();
+
+     // @mparsakia - toggle labels and icons
+     const toggleSelect = document.querySelector(".map-page__toggle-labels-icons");
+     toggleSelect.addEventListener("change", (event) => {
+       this.showLabelsAndIcons = Boolean(event?.target?.value === "true");
+       this.requestUpdate(); 
+     });
 
     this.coordinatesDisplay = this.querySelector(".canvas-map__coordinates");
     this.canvas = this.querySelector("canvas");
@@ -122,7 +130,7 @@ export class CanvasMap extends BaseElement {
     }
 
     this.locationIconsSheet = new Image();
-    this.locationIconsSheet.src = "/map/icons/map_icons.webp";
+    this.locationIconsSheet.src = "/map/icons/map_icons.webp"; // @mparsakia - this is the icons sprite sheet like water, bank, quest, etc 
     this.locationIconsSheet.onload = () => {
       this.requestUpdate();
     };
@@ -345,6 +353,8 @@ export class CanvasMap extends BaseElement {
   }
 
   drawLabels(labels, fillColor, strokeColor, position) {
+    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
+
     const groupedByTile = new Map();
     for (const label of labels) {
       const x = this.cantor(label.x, label.y);
@@ -444,6 +454,8 @@ export class CanvasMap extends BaseElement {
 
   drawMapAreaLabels(loadNewImages) {
     if (!this.mapLabels) return;
+    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
+
     this.mapLabelImages = this.mapLabelImages || new Map();
     const scale = Math.min(this.camera.zoom.current, 2);
 
@@ -730,13 +742,13 @@ export class CanvasMap extends BaseElement {
 
     let newZoom;
     if (options.zoom === undefined) {
+      // @mparsakia - older zoom seemed better for our case, restoring
       // mouse zoom
       // if (options.delta > 0) {
       //   newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) + 1, this.camera.minZoom), this.camera.maxZoom);
       // } else {
       //   newZoom = Math.min(Math.max(Math.round(this.camera.zoom.target) - 1, this.camera.minZoom), this.camera.maxZoom);
       // }
-      // @mparsakia - older zoom seemed better for our case, restoring
       newZoom = Math.min(Math.max(this.camera.zoom.target + options.delta, this.camera.minZoom), this.camera.maxZoom);
     } else {
       // touch zoom

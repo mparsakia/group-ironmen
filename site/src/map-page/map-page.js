@@ -20,6 +20,8 @@ export class MapPage extends BaseElement {
 
     this.planeSelect.value = this.worldMap.plane || 1;
 
+
+
     this.subscribe("members-updated", this.handleUpdatedMembers.bind(this));
     this.eventListener(this.playerButtons, "click", this.handleFocusPlayer.bind(this));
     this.eventListener(this.planeSelect, "change", this.handlePlaneSelect.bind(this));
@@ -47,6 +49,8 @@ export class MapPage extends BaseElement {
     this.worldMap.stopFollowingPlayer();
     this.worldMap.showPlane(this.getSelectedPlane());
   }
+
+
 
   handleUpdatedMembers(members) {
     let playerButtons = "";

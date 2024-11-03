@@ -197,7 +197,7 @@ input[type="radio"] {
   display: none;
 }
 
-
+/* @mparsakia - draggable member list override in settings */
 .draggable-member-list input[type="checkbox"] {
   display: inline-block !important;
   margin-right: 8px;
