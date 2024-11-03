@@ -130,7 +130,7 @@ export class CanvasMap extends BaseElement {
     }
 
     this.locationIconsSheet = new Image();
-    this.locationIconsSheet.src = "/map/icons/map_icons.webp"; // @mparsakia - this is the icons sprite sheet like water, bank, quest, etc 
+    this.locationIconsSheet.src = "/map/icons/map_icons.webp"; 
     this.locationIconsSheet.onload = () => {
       this.requestUpdate();
     };
@@ -420,7 +420,7 @@ export class CanvasMap extends BaseElement {
 
   drawLocations() {
     if (!this.locations) return;
-    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
+    // if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
     const imageSize = 15;
     const imageSizeHalf = imageSize / 2;
     // Scale the location icons down with zoom down up to a maximum. Larger number here means a smaller icon.
