@@ -353,8 +353,6 @@ export class CanvasMap extends BaseElement {
   }
 
   drawLabels(labels, fillColor, strokeColor, position) {
-    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
-
     const groupedByTile = new Map();
     for (const label of labels) {
       const x = this.cantor(label.x, label.y);
@@ -422,6 +420,7 @@ export class CanvasMap extends BaseElement {
 
   drawLocations() {
     if (!this.locations) return;
+    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
     const imageSize = 15;
     const imageSizeHalf = imageSize / 2;
     // Scale the location icons down with zoom down up to a maximum. Larger number here means a smaller icon.
