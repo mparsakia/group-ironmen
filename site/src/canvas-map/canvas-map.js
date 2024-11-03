@@ -16,11 +16,11 @@ export class CanvasMap extends BaseElement {
     super.connectedCallback();
     this.render();
 
-     // @mparsakia - toggle labels and icons
+     
      const toggleSelect = document.querySelector(".map-page__toggle-labels-icons");
      toggleSelect.addEventListener("change", (event) => {
        this.showLabelsAndIcons = Boolean(event?.target?.value === "true");
-       this.requestUpdate(); 
+       this.requestUpdate();  // @mparsakia - toggle labels and icons
      });
 
     this.coordinatesDisplay = this.querySelector(".canvas-map__coordinates");
@@ -138,7 +138,6 @@ export class CanvasMap extends BaseElement {
 
   handleUpdatedMembers(members) {
     this.playerMarkers = new Map();
-
     for (const member of members) {
       if (member.name === "@SHARED") continue;
       this.handleUpdatedCoordinates(member);
@@ -420,7 +419,8 @@ export class CanvasMap extends BaseElement {
 
   drawLocations() {
     if (!this.locations) return;
-    // if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
+    if (!this?.showLabelsAndIcons) return; // @mparsakia - toggle labels and icons
+
     const imageSize = 15;
     const imageSizeHalf = imageSize / 2;
     // Scale the location icons down with zoom down up to a maximum. Larger number here means a smaller icon.
