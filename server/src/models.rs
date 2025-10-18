@@ -1,6 +1,6 @@
+use crate::collection_log::CollectionLog;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::collection_log::CollectionLog;
 
 pub const SHARED_MEMBER: &str = "@SHARED";
 
@@ -34,7 +34,6 @@ pub struct RenameGroupMember {
 }
 
 #[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
 pub struct GroupMember {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -93,7 +92,7 @@ pub struct CreateGroup {
     pub token: String,
 }
 fn default_token() -> String {
-    uuid::Uuid::new_v4().to_hyphenated().to_string()
+    uuid::Uuid::new_v4().hyphenated().to_string()
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -113,6 +112,7 @@ pub type GEPrices = std::collections::HashMap<i32, i64>;
 #[derive(Deserialize)]
 pub struct CaptchaVerifyResponse {
     pub success: bool,
-    #[serde(rename = "error-codes", default)]
-    pub error_codes: std::vec::Vec<String>,
+    // NOTE: unused
+    // #[serde(rename = "error-codes", default)]
+    // pub error_codes: std::vec::Vec<String>,
 }

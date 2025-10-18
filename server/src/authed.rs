@@ -1,15 +1,11 @@
 use crate::auth_middleware::Authenticated;
+use crate::collection_log::{CollectionLog, CollectionLogInfo};
 use crate::db;
 use crate::error::ApiError;
 use crate::models::{
-    AmIInGroupRequest,
-    GroupMember,
-    GroupSkillData,
-    RenameGroupMember,
-    SHARED_MEMBER,
+    AmIInGroupRequest, GroupMember, GroupSkillData, RenameGroupMember, SHARED_MEMBER,
 };
-use crate::validators::{valid_name, validate_member_prop_length, validate_collection_log};
-use crate::collection_log::{CollectionLogInfo, CollectionLog};
+use crate::validators::{valid_name, validate_collection_log, validate_member_prop_length};
 use actix_web::{delete, get, post, put, web, Error, HttpResponse};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Pool};
@@ -90,7 +86,7 @@ pub async fn update_group_member(
     auth: Authenticated,
     group_member: web::Json<GroupMember>,
     db_pool: web::Data<Pool>,
-    collection_log_info: web::Data<CollectionLogInfo>
+    collection_log_info: web::Data<CollectionLogInfo>,
 ) -> Result<HttpResponse, Error> {
     let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
     let in_group: bool = db::is_member_in_group(&client, auth.group_id, &group_member.name).await?;
@@ -102,7 +98,7 @@ pub async fn update_group_member(
     validate_member_prop_length("stats", &group_member_inner.stats, 7, 7)?;
     validate_member_prop_length("coordinates", &group_member_inner.coordinates, 3, 3)?;
     validate_member_prop_length("skills", &group_member_inner.skills, 23, 24)?;
-    validate_member_prop_length("quests", &group_member_inner.quests, 0, 200)?;
+    validate_member_prop_length("quests", &group_member_inner.quests, 0, 220)?;
     validate_member_prop_length("inventory", &group_member_inner.inventory, 56, 56)?;
     validate_member_prop_length("equipment", &group_member_inner.equipment, 28, 28)?;
     validate_member_prop_length("bank", &group_member_inner.bank, 0, 3000)?;
@@ -113,7 +109,13 @@ pub async fn update_group_member(
     validate_member_prop_length("diary_vars", &group_member_inner.diary_vars, 0, 62)?;
     validate_collection_log(&collection_log_info, &mut group_member_inner.collection_log)?;
 
-    db::update_group_member(&client, auth.group_id, group_member_inner, collection_log_info).await?;
+    db::update_group_member(
+        &client,
+        auth.group_id,
+        group_member_inner,
+        collection_log_info,
+    )
+    .await?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -164,15 +166,10 @@ pub async fn get_skill_data(
     Ok(web::Json(group_skill_data))
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CollectionLogQuery {
-    pub member_name: String
-}
 #[get("/collection-log")]
 pub async fn get_collection_log(
     auth: Authenticated,
-    db_pool: web::Data<Pool>
+    db_pool: web::Data<Pool>,
 ) -> Result<web::Json<HashMap<String, Vec<CollectionLog>>>, Error> {
     let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
     let collection_logs = db::get_collection_log_for_group(&client, auth.group_id).await?;
