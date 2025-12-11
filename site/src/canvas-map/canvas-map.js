@@ -16,12 +16,8 @@ export class CanvasMap extends BaseElement {
     super.connectedCallback();
     this.render();
 
-     
-     const toggleSelect = document.querySelector(".map-page__toggle-labels-icons");
-     toggleSelect.addEventListener("change", (event) => {
-       this.showLabelsAndIcons = Boolean(event?.target?.value === "true");
-       this.requestUpdate();  // @mparsakia - toggle labels and icons
-     });
+    // Set up labels toggle listener - use a more robust approach
+    this.setupLabelsToggle();
 
     this.coordinatesDisplay = this.querySelector(".canvas-map__coordinates");
     this.canvas = this.querySelector("canvas");
@@ -93,47 +89,100 @@ export class CanvasMap extends BaseElement {
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    // Clean up labels toggle listener
+    if (this.labelsToggleListener) {
+      const toggleSelect = document.querySelector(".map-page__toggle-labels-icons");
+      if (toggleSelect) {
+        toggleSelect.removeEventListener("change", this.labelsToggleListener);
+      }
+    }
+  }
+
+  setupLabelsToggle() {
+    // Create the listener function and store it for cleanup
+    this.labelsToggleListener = (event) => {
+      this.showLabelsAndIcons = Boolean(event?.target?.value === "true");
+      this.requestUpdate();
+    };
+
+    // Try to attach immediately
+    const toggleSelect = document.querySelector(".map-page__toggle-labels-icons");
+    if (toggleSelect) {
+      toggleSelect.addEventListener("change", this.labelsToggleListener);
+    } else {
+      // If toggle doesn't exist yet, wait for it with a MutationObserver
+      const observer = new MutationObserver(() => {
+        const select = document.querySelector(".map-page__toggle-labels-icons");
+        if (select) {
+          select.addEventListener("change", this.labelsToggleListener);
+          observer.disconnect();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      
+      // Cleanup observer after 5 seconds to prevent memory leaks
+      setTimeout(() => observer.disconnect(), 5000);
+    }
   }
 
   async getMapJson() {
-    const response = await fetch("/data/map.json");
-    const data = await response.json();
-    this.validTiles = [];
-    for (const x of data.tiles) {
-      this.validTiles.push(new Set(x));
-    }
+    try {
+      const response = await fetch("/data/map.json");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch map.json: ${response.status}`);
+      }
+      const data = await response.json();
+      this.validTiles = [];
+      for (const x of data.tiles) {
+        this.validTiles.push(new Set(x));
+      }
 
-    this.locations = {};
-    for (const tileRegionX of Object.keys(data.icons)) {
-      const x = parseInt(tileRegionX);
-      this.locations[x] = {};
-      for (const tileRegionY of Object.keys(data.icons[tileRegionX])) {
-        const y = parseInt(tileRegionY);
-        this.locations[x][y] = {};
-        for (const spriteIndex of Object.keys(data.icons[tileRegionX][tileRegionY])) {
-          this.locations[x][y][parseInt(spriteIndex)] = data.icons[tileRegionX][tileRegionY][spriteIndex];
+      this.locations = {};
+      for (const tileRegionX of Object.keys(data.icons)) {
+        const x = parseInt(tileRegionX);
+        this.locations[x] = {};
+        for (const tileRegionY of Object.keys(data.icons[tileRegionX])) {
+          const y = parseInt(tileRegionY);
+          this.locations[x][y] = {};
+          for (const spriteIndex of Object.keys(data.icons[tileRegionX][tileRegionY])) {
+            this.locations[x][y][parseInt(spriteIndex)] = data.icons[tileRegionX][tileRegionY][spriteIndex];
+          }
         }
       }
-    }
 
-    this.mapLabels = {};
-    for (const tileRegionX of Object.keys(data.labels)) {
-      const x = parseInt(tileRegionX);
-      this.mapLabels[x] = {};
-      for (const tileRegionY of Object.keys(data.labels[tileRegionX])) {
-        const y = parseInt(tileRegionY);
-        this.mapLabels[x][y] = {};
-        for (const z of Object.keys(data.labels[tileRegionX][tileRegionY])) {
-          this.mapLabels[x][y][parseInt(z)] = data.labels[tileRegionX][tileRegionY][z];
+      this.mapLabels = {};
+      for (const tileRegionX of Object.keys(data.labels)) {
+        const x = parseInt(tileRegionX);
+        this.mapLabels[x] = {};
+        for (const tileRegionY of Object.keys(data.labels[tileRegionX])) {
+          const y = parseInt(tileRegionY);
+          this.mapLabels[x][y] = {};
+          for (const z of Object.keys(data.labels[tileRegionX][tileRegionY])) {
+            this.mapLabels[x][y][parseInt(z)] = data.labels[tileRegionX][tileRegionY][z];
+          }
         }
       }
-    }
 
-    this.locationIconsSheet = new Image();
-    this.locationIconsSheet.src = "/map/icons/map_icons.webp"; 
-    this.locationIconsSheet.onload = () => {
-      this.requestUpdate();
-    };
+      this.locationIconsSheet = new Image();
+      this.locationIconsSheet.src = "/map/icons/map_icons.webp"; 
+      
+      // Use a promise to ensure the image is loaded
+      await new Promise((resolve, reject) => {
+        this.locationIconsSheet.onload = () => {
+          this.mapDataLoaded = true;
+          this.requestUpdate();
+          resolve();
+        };
+        this.locationIconsSheet.onerror = (err) => {
+          console.error("Failed to load map icons sheet", err);
+          reject(err);
+        };
+      });
+    } catch (error) {
+      console.error("Error loading map data:", error);
+      // Retry after a delay
+      setTimeout(() => this.getMapJson(), 2000);
+    }
   }
 
   handleUpdatedMembers(members) {
