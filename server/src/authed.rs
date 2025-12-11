@@ -1,16 +1,16 @@
 use crate::auth_middleware::Authenticated;
-use crate::collection_log::{CollectionLog, CollectionLogInfo};
 use crate::db;
 use crate::error::ApiError;
 use crate::models::{
     AmIInGroupRequest, GroupMember, GroupSkillData, RenameGroupMember, SHARED_MEMBER,
 };
-use crate::validators::{valid_name, validate_collection_log, validate_member_prop_length};
+use crate::validators::{valid_name, validate_member_prop_length};
 use actix_web::{delete, get, post, put, web, Error, HttpResponse};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::{Client, Pool};
 use serde::Deserialize;
 use std::collections::HashMap;
+use tokio::sync::mpsc;
 
 #[post("/add-group-member")]
 pub async fn add_group_member(
@@ -86,17 +86,21 @@ pub async fn update_group_member(
     auth: Authenticated,
     group_member: web::Json<GroupMember>,
     db_pool: web::Data<Pool>,
-    collection_log_info: web::Data<CollectionLogInfo>,
+    sender: web::Data<mpsc::Sender<GroupMember>>
 ) -> Result<HttpResponse, Error> {
-    let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
-    let in_group: bool = db::is_member_in_group(&client, auth.group_id, &group_member.name).await?;
-    if !in_group {
-        return Ok(HttpResponse::Unauthorized().body("Player is not a member of this group"));
+    {
+        let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
+        let in_group: bool = db::is_member_in_group(&client, auth.group_id, &group_member.name).await?;
+        if !in_group {
+            return Ok(HttpResponse::Unauthorized().body("Player is not a member of this group"));
+        }
     }
+
     let mut group_member_inner: GroupMember = group_member.into_inner();
+    group_member_inner.group_id = Some(auth.group_id);
 
     validate_member_prop_length("stats", &group_member_inner.stats, 7, 7)?;
-    validate_member_prop_length("coordinates", &group_member_inner.coordinates, 3, 3)?;
+    validate_member_prop_length("coordinates", &group_member_inner.coordinates, 3, 4)?;
     validate_member_prop_length("skills", &group_member_inner.skills, 23, 24)?;
     validate_member_prop_length("quests", &group_member_inner.quests, 0, 220)?;
     validate_member_prop_length("inventory", &group_member_inner.inventory, 56, 56)?;
@@ -107,16 +111,12 @@ pub async fn update_group_member(
     validate_member_prop_length("seed_vault", &group_member_inner.seed_vault, 0, 500)?;
     validate_member_prop_length("deposited", &group_member_inner.deposited, 0, 200)?;
     validate_member_prop_length("diary_vars", &group_member_inner.diary_vars, 0, 62)?;
-    validate_collection_log(&collection_log_info, &mut group_member_inner.collection_log)?;
+    validate_member_prop_length("collection_log_v2", &group_member_inner.collection_log_v2, 0, 4000)?;
 
-    db::update_group_member(
-        &client,
-        auth.group_id,
-        group_member_inner,
-        collection_log_info,
-    )
-    .await?;
-    Ok(HttpResponse::Ok().finish())
+    match sender.send(group_member_inner).await {
+        Ok(_) => Ok(HttpResponse::Ok().finish()),
+        Err(_) => Ok(HttpResponse::InternalServerError().body("Failed to submit player update")),
+    }
 }
 
 #[derive(Deserialize)]
@@ -166,16 +166,6 @@ pub async fn get_skill_data(
     Ok(web::Json(group_skill_data))
 }
 
-#[get("/collection-log")]
-pub async fn get_collection_log(
-    auth: Authenticated,
-    db_pool: web::Data<Pool>,
-) -> Result<web::Json<HashMap<String, Vec<CollectionLog>>>, Error> {
-    let client: Client = db_pool.get().await.map_err(ApiError::PoolError)?;
-    let collection_logs = db::get_collection_log_for_group(&client, auth.group_id).await?;
-    Ok(web::Json(collection_logs))
-}
-
 #[get("/am-i-logged-in")]
 pub async fn am_i_logged_in(_auth: Authenticated) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().finish())
@@ -194,4 +184,10 @@ pub async fn am_i_in_group(
         return Ok(HttpResponse::Unauthorized().body("Player is not a member of this group"));
     }
     Ok(HttpResponse::Ok().finish())
+}
+
+#[get("/collection-log")]
+pub async fn get_collection_log(
+) -> Result<web::Json<HashMap<String, Vec<i32>>>, Error> {
+    Ok(web::Json(HashMap::new()))
 }

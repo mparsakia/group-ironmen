@@ -1,4 +1,3 @@
-use crate::collection_log::{CollectionLog, CollectionLogInfo, COLLECTION_LOG_INFO};
 use crate::crypto::token_hash;
 use crate::error::ApiError;
 use crate::models::{
@@ -193,7 +192,7 @@ pub async fn is_member_in_group(
     Ok(member_count > 0)
 }
 
-fn serialize_serde<T>(value: &Option<T>) -> Result<Option<String>, ApiError>
+pub fn serialize_serde<T>(value: &Option<T>) -> Result<Option<String>, ApiError>
 where
     T: Serialize,
 {
@@ -204,295 +203,6 @@ where
         }
         None => Ok(None),
     }
-}
-
-pub async fn update_group_member(
-    client: &Client,
-    group_id: i64,
-    group_member: GroupMember,
-    collection_log_info: actix_web::web::Data<CollectionLogInfo>,
-) -> Result<(), ApiError> {
-    let stmt = client
-        .prepare_cached(
-            r#"
-UPDATE groupironman.members SET
-  stats = COALESCE($1, stats),
-  stats_last_update = CASE WHEN $1 IS NULL THEN stats_last_update ELSE NOW() END,
-  coordinates = COALESCE($2, coordinates),
-  coordinates_last_update = CASE WHEN $2 IS NULL THEN coordinates_last_update ELSE NOW() END,
-  skills = COALESCE($3, skills),
-  skills_last_update = CASE WHEN $3 IS NULL THEN skills_last_update ELSE NOW() END,
-  quests = COALESCE($4, quests),
-  quests_last_update = CASE WHEN $4 IS NULL THEN quests_last_update ELSE NOW() END,
-  inventory = COALESCE($5, inventory),
-  inventory_last_update = CASE WHEN $5 IS NULL THEN inventory_last_update ELSE NOW() END,
-  equipment = COALESCE($6, equipment),
-  equipment_last_update = CASE WHEN $6 IS NULL THEN equipment_last_update ELSE NOW() END,
-  bank = COALESCE($7, bank),
-  bank_last_update = CASE WHEN $7 IS NULL THEN bank_last_update ELSE NOW() END,
-  rune_pouch = COALESCE($8, rune_pouch),
-  rune_pouch_last_update = CASE WHEN $8 IS NULL THEN rune_pouch_last_update ELSE NOW() END,
-  interacting = COALESCE($9, interacting),
-  interacting_last_update = CASE WHEN $9 IS NULL THEN interacting_last_update ELSE NOW() END,
-  seed_vault = COALESCE($10, seed_vault),
-  seed_vault_last_update = CASE WHEN $10 IS NULL THEN seed_vault_last_update ELSE NOW() END,
-  diary_vars = COALESCE($11, diary_vars),
-  diary_vars_last_update = CASE WHEN $11 IS NULL THEN diary_vars_last_update ELSE NOW() END
-  WHERE group_id=$12 AND member_name=$13
-"#,
-        )
-        .await?;
-
-    client
-        .execute(
-            &stmt,
-            &[
-                &group_member.stats,
-                &group_member.coordinates,
-                &group_member.skills,
-                &group_member.quests,
-                &group_member.inventory,
-                &group_member.equipment,
-                &group_member.bank,
-                &group_member.rune_pouch,
-                &serialize_serde(&group_member.interacting)?,
-                &group_member.seed_vault,
-                &group_member.diary_vars,
-                &group_id,
-                &group_member.name,
-            ],
-        )
-        .await
-        .map_err(ApiError::UpdateGroupMemberError)?;
-
-    // Merge deposited items into bank
-    match group_member.deposited {
-        Some(deposited) => {
-            deposit_items(client, group_id, &group_member.name, deposited).await?;
-        }
-        None => (),
-    }
-
-    // Update shared bank
-    match group_member.shared_bank {
-        Some(shared_bank) => {
-            let stmt = client
-                .prepare_cached(
-                    r#"
-UPDATE groupironman.members SET
-bank=$1, bank_last_update=NOW()
-WHERE group_id=$2 AND member_name=$3"#,
-                )
-                .await?;
-
-            client
-                .execute(&stmt, &[&shared_bank, &group_id, &SHARED_MEMBER])
-                .await
-                .map_err(ApiError::UpdateGroupMemberError)?;
-        }
-        None => (),
-    }
-
-    // Update collection log items and kill/completion counts
-    match group_member.collection_log {
-        Some(collection_logs) => {
-            let member_id = get_member_id(client, group_id, &group_member.name).await?;
-            let stmt = client
-                .prepare_cached(
-                    r#"
-INSERT INTO groupironman.collection_log (member_id, page_id, items, counts, last_updated, group_id)
-VALUES ($1, $2, $3, $4, NOW(), $5)
-ON CONFLICT (member_id, page_id)
-DO UPDATE SET items=EXCLUDED.items, counts=EXCLUDED.counts, last_updated=EXCLUDED.last_updated
-"#,
-                )
-                .await?;
-            let clear_new_items_stmt = client
-                .prepare_cached(
-                    r#"
-UPDATE groupironman.collection_log_new SET new_items=ARRAY[]::INTEGER[], last_updated=NOW()
-WHERE member_id=$1 AND page_id=$2
-"#,
-                )
-                .await?;
-            for collection_log in collection_logs {
-                let page_id = collection_log_info.page_name_to_id(&collection_log.page_name);
-                client
-                    .execute(
-                        &stmt,
-                        &[
-                            &member_id,
-                            &page_id,
-                            &collection_log.items,
-                            &collection_log.completion_counts,
-                            &group_id,
-                        ],
-                    )
-                    .await
-                    .map_err(ApiError::UpdateGroupMemberError)?;
-                client
-                    .execute(&clear_new_items_stmt, &[&member_id, &page_id])
-                    .await
-                    .map_err(ApiError::UpdateGroupMemberError)?;
-            }
-        }
-        None => (),
-    }
-
-    // Update new collection log drops
-    match group_member.collection_log_new {
-        Some(collection_log_new) => {
-            let member_id = get_member_id(client, group_id, &group_member.name).await?;
-            let mut item_ids: Vec<i32> = vec![];
-            // Convert the item names to ids
-            for item_name in collection_log_new {
-                match collection_log_info.item_name_to_id(&item_name) {
-                    Some(id) => item_ids.push(*id),
-                    None => {
-                        return Err(ApiError::GroupMemberValidationError(format!(
-                            "{} is not a known collection log item",
-                            item_name
-                        )));
-                    }
-                };
-            }
-
-            // map the page ids we need to update to the set of item ids
-            let mut page_ids_to_item_ids: HashMap<i16, HashSet<i32>> = HashMap::new();
-            for item_id in item_ids {
-                match collection_log_info.page_ids_for_item(item_id) {
-                    Some(page_ids) => {
-                        for page_id in page_ids {
-                            if !page_ids_to_item_ids.contains_key(&page_id) {
-                                page_ids_to_item_ids.insert(*page_id, HashSet::new());
-                            }
-
-                            match page_ids_to_item_ids.get_mut(&page_id) {
-                                Some(x) => x.insert(item_id),
-                                None => true,
-                            };
-                        }
-                    }
-                    None => (),
-                };
-            }
-
-            let update_new_items_stmt = client
-                .prepare_cached(
-                    r#"
-INSERT INTO groupironman.collection_log_new (member_id, page_id, new_items, last_updated, group_id)
-VALUES ($1, $2, $3, NOW(), $4)
-ON CONFLICT(member_id, page_id)
-DO UPDATE SET new_items=EXCLUDED.new_items, last_updated=EXCLUDED.last_updated
-"#,
-                )
-                .await?;
-            // Combine the existing items with the new items
-            for (page_id, item_ids) in page_ids_to_item_ids {
-                let existing_items: Vec<i32> =
-                    get_collection_new_for_page(&client, member_id, page_id)
-                        .await
-                        .unwrap_or(Vec::new());
-                let mut combined: HashSet<i32> = HashSet::from_iter(existing_items);
-                combined.extend(&item_ids);
-                let combined_vec: Vec<i32> = Vec::from_iter(combined);
-                client
-                    .execute(
-                        &update_new_items_stmt,
-                        &[&member_id, &page_id, &combined_vec, &group_id],
-                    )
-                    .await
-                    .map_err(ApiError::UpdateGroupMemberError)?;
-            }
-        }
-        None => (),
-    }
-
-    Ok(())
-}
-
-pub async fn get_collection_new_for_page(
-    client: &Client,
-    member_id: i64,
-    page_id: i16,
-) -> Result<Vec<i32>, ApiError> {
-    let get_existing_items_stmt = client
-        .prepare_cached("SELECT new_items FROM groupironman.collection_log_new WHERE member_id=$1 AND page_id=$2").await?;
-    Ok(client
-        .query_one(&get_existing_items_stmt, &[&member_id, &page_id])
-        .await?
-        .try_get(0)?)
-}
-
-pub async fn deposit_items(
-    client: &Client,
-    group_id: i64,
-    member_name: &str,
-    deposited: Vec<i32>,
-) -> Result<(), ApiError> {
-    if deposited.is_empty() {
-        return Ok(());
-    }
-
-    let get_bank_stmt = client
-        .prepare_cached(
-            "SELECT bank FROM groupironman.members WHERE group_id=$1 AND member_name=$2",
-        )
-        .await?;
-    let row = client
-        .query_one(&get_bank_stmt, &[&group_id, &member_name])
-        .await
-        .map_err(ApiError::UpdateGroupMemberError)?;
-
-    let opt_bank: Option<Vec<i32>> = row.try_get("bank").ok();
-
-    // Merge the deposited items into the bank data
-    match opt_bank {
-        Some(mut bank) => {
-            let mut deposited_map = HashMap::new();
-            for i in (0..deposited.len()).step_by(2) {
-                deposited_map.insert(deposited[i], deposited[i + 1]);
-            }
-
-            // Add the quantity of a deposited item to an item already in the bank
-            for i in (0..bank.len()).step_by(2) {
-                let item_id = bank[i];
-                if deposited_map.contains_key(&item_id) {
-                    bank[i + 1] += deposited_map.get(&item_id).unwrap_or(&0);
-                    deposited_map.remove(&item_id);
-                }
-            }
-
-            // Add the rest of the deposted items as new items into the bank
-            for id in deposited_map.keys() {
-                if *id == 0 {
-                    continue;
-                }
-
-                let quantity = *deposited_map.get(id).unwrap_or(&0);
-
-                if quantity > 0 {
-                    bank.push(*id);
-                    bank.push(quantity);
-                }
-            }
-
-            let update_bank_stmt = client
-                .prepare_cached(
-                    r#"
-UPDATE groupironman.members SET bank=$1, bank_last_update=NOW() WHERE group_id=$2 AND member_name=$3
-"#,
-                )
-                .await?;
-            client
-                .execute(&update_bank_stmt, &[&bank, &group_id, &member_name])
-                .await
-                .map_err(ApiError::UpdateGroupMemberError)?;
-        }
-        None => (),
-    }
-
-    Ok(())
 }
 
 pub async fn get_group(client: &Client, group_name: &str, token: &str) -> Result<i64, ApiError> {
@@ -530,7 +240,8 @@ pub async fn get_group_data(
 SELECT member_name,
 GREATEST(stats_last_update, coordinates_last_update, skills_last_update,
 quests_last_update, inventory_last_update, equipment_last_update, bank_last_update,
-rune_pouch_last_update, interacting_last_update, seed_vault_last_update, diary_vars_last_update) as last_updated,
+rune_pouch_last_update, interacting_last_update, seed_vault_last_update, diary_vars_last_update,
+collection_log_last_update) as last_updated,
 CASE WHEN stats_last_update >= $1::TIMESTAMPTZ THEN stats ELSE NULL END as stats,
 CASE WHEN coordinates_last_update >= $1::TIMESTAMPTZ THEN coordinates ELSE NULL END as coordinates,
 CASE WHEN skills_last_update >= $1::TIMESTAMPTZ THEN skills ELSE NULL END as skills,
@@ -541,7 +252,8 @@ CASE WHEN bank_last_update >= $1::TIMESTAMPTZ THEN bank ELSE NULL END as bank,
 CASE WHEN rune_pouch_last_update >= $1::TIMESTAMPTZ THEN rune_pouch ELSE NULL END as rune_pouch,
 CASE WHEN interacting_last_update >= $1::TIMESTAMPTZ THEN interacting ELSE NULL END as interacting,
 CASE WHEN seed_vault_last_update >= $1::TIMESTAMPTZ THEN seed_vault ELSE NULL END as seed_vault,
-CASE WHEN diary_vars_last_update >= $1::TIMESTAMPTZ THEN diary_vars ELSE NULL END as diary_vars
+CASE WHEN diary_vars_last_update >= $1::TIMESTAMPTZ THEN diary_vars ELSE NULL END as diary_vars,
+CASE WHEN collection_log_last_update > $1::TIMESTAMPTZ THEN collection_log ELSE NULL END as collection_log
 FROM groupironman.members WHERE group_id=$2
 "#,
         )
@@ -556,6 +268,7 @@ FROM groupironman.members WHERE group_id=$2
         let member_name = row.try_get("member_name")?;
         let last_updated: Option<DateTime<Utc>> = row.try_get("last_updated").ok();
         let group_member = GroupMember {
+            group_id: Some(group_id),
             name: member_name,
             last_updated,
             stats: row.try_get("stats").ok(),
@@ -571,8 +284,7 @@ FROM groupironman.members WHERE group_id=$2
             diary_vars: row.try_get("diary_vars").ok(),
             shared_bank: Option::None,
             deposited: Option::None,
-            collection_log: Option::None,
-            collection_log_new: Option::None,
+            collection_log_v2: row.try_get("collection_log").ok()
         };
         result.push(group_member);
     }
@@ -748,158 +460,6 @@ WHERE m.group_id=$1
     Ok(member_data.into_values().collect())
 }
 
-pub async fn get_collection_log_info(client: &Client) -> Result<CollectionLogInfo, ApiError> {
-    let page_info_stmt = client
-        .prepare_cached(r#"SELECT tab_id, page_id, page_name FROM groupironman.collection_page"#)
-        .await?;
-    let page_info_rows = client.query(&page_info_stmt, &[]).await?;
-    let mut pages: Vec<(i16, i16, String)> = vec![];
-    for row in page_info_rows {
-        pages.push((
-            row.try_get("tab_id")?,
-            row.try_get("page_id")?,
-            row.try_get("page_name")?,
-        ));
-    }
-
-    Ok(CollectionLogInfo::new(pages))
-}
-
-pub async fn get_collection_log_for_group(
-    client: &Client,
-    group_id: i64,
-) -> Result<HashMap<String, Vec<CollectionLog>>, ApiError> {
-    let collection_log_stmt = client.prepare_cached(r#"
-SELECT groupironman.collection_log.page_id,
-       page_name,
-       items,
-       counts,
-       groupironman.members.member_name,
-       groupironman.members.member_id
-FROM groupironman.collection_log
-INNER JOIN groupironman.members ON groupironman.collection_log.member_id = groupironman.members.member_id
-INNER JOIN groupironman.collection_page ON groupironman.collection_page.page_id = groupironman.collection_log.page_id
-WHERE groupironman.collection_log.group_id=$1
-"#).await?;
-    let collection_log_rows = client
-        .query(&collection_log_stmt, &[&group_id])
-        .await
-        .map_err(ApiError::GetCollectionLogError)?;
-
-    let collection_log_new_stmt = client
-        .prepare_cached(
-            r#"
-SELECT page_id,
-       new_items,
-       groupironman.members.member_id
-FROM groupironman.collection_log_new
-INNER JOIN groupironman.members
-ON groupironman.collection_log_new.member_id = groupironman.members.member_id
-WHERE groupironman.collection_log_new.group_id=$1
-"#,
-        )
-        .await?;
-    let collection_log_new_rows = client
-        .query(&collection_log_new_stmt, &[&group_id])
-        .await
-        .map_err(ApiError::GetCollectionLogError)?;
-
-    let mut new_items_lookup: HashMap<(i64, i16), Vec<i32>> = HashMap::new();
-    for row in collection_log_new_rows {
-        let new_items: Vec<i32> = row.try_get("new_items")?;
-        let member_id: i64 = row.try_get("member_id")?;
-        let page_id: i16 = row.try_get("page_id")?;
-
-        new_items_lookup.insert((member_id, page_id), new_items);
-    }
-
-    let mut result: HashMap<String, Vec<CollectionLog>> = HashMap::new();
-    for row in collection_log_rows {
-        let member_id = row.try_get("member_id")?;
-        let page_id = row.try_get("page_id")?;
-        let page = CollectionLog {
-            tab: -1,
-            page_name: row.try_get("page_name")?,
-            completion_counts: row.try_get("counts")?,
-            items: row.try_get("items")?,
-            new_items: new_items_lookup
-                .remove(&(member_id, page_id))
-                .unwrap_or(Vec::new()),
-        };
-
-        let member_name: String = row.try_get("member_name")?;
-        match result.get_mut(&member_name) {
-            Some(pages) => {
-                pages.push(page);
-            }
-            None => {
-                result.insert(member_name, vec![page]);
-            }
-        };
-    }
-
-    Ok(result)
-}
-
-pub async fn add_group_id_column(
-    transaction: &Transaction<'_>,
-    table_name: &str,
-) -> Result<(), ApiError> {
-    transaction
-        .execute(
-            &format!(
-                r#"
-ALTER TABLE groupironman.{}
-ADD COLUMN IF NOT EXISTS group_id BIGINT DEFAULT NULL
-    "#,
-                table_name
-            ),
-            &[],
-        )
-        .await?;
-    transaction
-        .execute(
-            &format!(
-                r#"
-UPDATE groupironman.{} as c SET group_id=g.group_id
-FROM groupironman.members AS g
-WHERE c.group_id IS NULL AND c.member_id=g.member_id
-"#,
-                table_name
-            ),
-            &[],
-        )
-        .await?;
-
-    transaction
-        .execute(
-            &format!(
-                r#"
-DO $$
-BEGIN
-
-  BEGIN
-    ALTER TABLE groupironman.{table}
-    ADD CONSTRAINT group_id_fk
-    FOREIGN KEY (group_id)
-    REFERENCES groupironman.groups(group_id);
-  EXCEPTION
-    WHEN duplicate_table THEN
-    WHEN duplicate_object THEN
-      RAISE NOTICE 'Table constraint groupironman.{table}.group_id_fk already exists';
-  END;
-
-END $$
-"#,
-                table = table_name
-            ),
-            &[],
-        )
-        .await?;
-
-    Ok(())
-}
-
 pub async fn has_migration_run(client: &mut Client, name: &str) -> Result<bool, ApiError> {
     let count: i64 = client
         .query_one(
@@ -1067,116 +627,6 @@ ON CONFLICT (type) DO NOTHING
         transaction.commit().await?;
     }
 
-    if !has_migration_run(client, "add_collection_log").await? {
-        let transaction = client.transaction().await?;
-
-        transaction
-            .execute(
-                r#"
-CREATE TABLE IF NOT EXISTS groupironman.collection_tab (
-    tab_id SMALLSERIAL PRIMARY KEY,
-    name TEXT NOT NULL
-)
-"#,
-                &[],
-            )
-            .await?;
-        transaction
-            .execute(
-                r#"
-INSERT INTO groupironman.collection_tab (tab_id, name) VALUES
-    (0, 'Bosses'),
-    (1, 'Raids'),
-    (2, 'Clues'),
-    (3, 'Minigames'),
-    (4, 'Other')
-ON CONFLICT (tab_id) DO NOTHING
-"#,
-                &[],
-            )
-            .await?;
-
-        transaction
-            .execute(
-                r#"
-CREATE TABLE IF NOT EXISTS groupironman.collection_page (
-    page_id SMALLSERIAL PRIMARY KEY,
-    tab_id SMALLSERIAL REFERENCES groupironman.collection_tab(tab_id),
-    page_name TEXT NOT NULL,
-
-    UNIQUE(tab_id, page_name)
-)
-"#,
-                &[],
-            )
-            .await?;
-
-        for tab in COLLECTION_LOG_INFO.iter() {
-            for page in tab.pages.iter() {
-                transaction
-                    .execute(
-                        r#"
-INSERT INTO groupironman.collection_page (tab_id, page_name) VALUES ($1, $2)
-ON CONFLICT (tab_id, page_name) DO NOTHING
-"#,
-                        &[&tab.tabId, &page.name],
-                    )
-                    .await?;
-            }
-        }
-
-        transaction
-            .execute(
-                r#"
-CREATE TABLE IF NOT EXISTS groupironman.collection_log (
-    member_id BIGSERIAL REFERENCES groupironman.members(member_id),
-    page_id SMALLSERIAL REFERENCES groupironman.collection_page(page_id),
-    items INTEGER[],
-    counts INTEGER[],
-    last_updated TIMESTAMPTZ,
-
-
-    PRIMARY KEY (member_id, page_id)
-)
-"#,
-                &[],
-            )
-            .await?;
-
-        transaction
-            .execute(
-                r#"
-CREATE TABLE IF NOT EXISTS groupironman.collection_log_new (
-    member_id BIGSERIAL REFERENCES groupironman.members(member_id),
-    page_id SMALLSERIAL REFERENCES groupironman.collection_page(page_id),
-    new_items INTEGER[],
-    last_updated TIMESTAMPTZ,
-
-
-    PRIMARY KEY (member_id, page_id)
-)
-"#,
-                &[],
-            )
-            .await?;
-
-        transaction
-            .execute(
-                r#"
-DROP TABLE IF EXISTS groupironman.collection_items;
-"#,
-                &[],
-            )
-            .await?;
-
-        // Adding group id column to collection_log table so we can query the whole group's log
-        add_group_id_column(&transaction, "collection_log").await?;
-        add_group_id_column(&transaction, "collection_log_new").await?;
-
-        commit_migration(&transaction, "add_collection_log").await?;
-        transaction.commit().await?;
-    }
-
     if !has_migration_run(client, "member_name_citext").await? {
         let transaction = client.transaction().await?;
 
@@ -1263,23 +713,131 @@ ORDER BY GREATEST(
         transaction.commit().await?;
     }
 
-    {
+    if !has_migration_run(client, "add_collection_log_member_column").await? {
+        let transaction = client.transaction().await?;
+        transaction
+            .execute(
+                r#"
+ALTER TABLE groupironman.members
+ADD COLUMN IF NOT EXISTS collection_log_last_update TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS collection_log INTEGER[]
+"#,
+                &[],
+            )
+            .await?;
+        commit_migration(&transaction, "add_collection_log_member_column").await?;
+        transaction.commit().await?;
+    }
+
+    if !has_migration_run(client, "migrate_collection_log_v2").await? && has_migration_run(client, "add_collection_log").await? {
+        println!("beginning migration migrate_collection_log_v2");
         let transaction = client.transaction().await?;
 
-        for tab in COLLECTION_LOG_INFO.iter() {
-            for page in tab.pages.iter() {
-                transaction
-                    .execute(
-                        r#"
-INSERT INTO groupironman.collection_page (tab_id, page_name) VALUES ($1, $2)
-ON CONFLICT (tab_id, page_name) DO NOTHING
-"#,
-                        &[&tab.tabId, &page.name],
-                    )
-                    .await?;
+        // collect the data to migrate
+        let rows = transaction
+            .query("SELECT member_id, items FROM groupironman.collection_log WHERE cardinality(items) > 0", &[])
+            .await
+            .unwrap();
+        let mut member_data: HashMap<i64, Vec<i32>> = HashMap::new();
+        for row in rows {
+            let member_id: i64 = row.try_get("member_id")?;
+            let items: Vec<i32> = row.try_get("items")?;
+
+            match member_data.get_mut(&member_id) {
+                Some(collection_log) => { collection_log.extend(items.iter()); }
+                None => { member_data.insert(member_id, items); }
+            };
+        }
+        println!("need to migrate {} members", member_data.len());
+
+        // breakup into chunks
+        let chunk_size = 100;
+        let member_data_list: Vec<(i64, Vec<i32>)> = member_data.into_iter().collect();
+        let mut chunks = Vec::new();
+        for chunk_slice in member_data_list.chunks(chunk_size) {
+            let chunk_map: HashMap<i64, Vec<i32>> = chunk_slice.iter().cloned().collect();
+            chunks.push(chunk_map);
+        }
+        println!("split into {} chunks of size {}", chunks.len(), chunk_size);
+
+        // update new collection log column
+        for (i, chunk) in chunks.iter().enumerate() {
+            println!("migrating chunk {}/{} size {}", i + 1, chunks.len(), chunk.len());
+            let mut values_clause = String::new();
+            for i in 0..chunk.len() {
+                values_clause.push_str(&format!("(${}::BIGINT, ${}::INTEGER[])", i * 2 + 1, i * 2 + 2));
+                if i < chunk.len() - 1 {
+                    values_clause.push_str(", ");
+                }
             }
+            let mut params: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = Vec::new();
+            for (member_id, items) in chunk.iter() {
+                params.push(member_id);
+                params.push(items);
+            }
+
+            // timestamp is set to value that will return on the initial frontend request, but does not show the player as online
+            let update_query = format!(r#"
+UPDATE groupironman.members as a SET collection_log=b.collection_log, collection_log_last_update='epoch'::timestamptz + INTERVAL '5 days'
+FROM (VALUES {}) AS b(member_id, collection_log)
+WHERE a.member_id=b.member_id
+"#, values_clause);
+
+            transaction.execute(&update_query, &params).await?;
         }
 
+        commit_migration(&transaction, "migrate_collection_log_v2").await?;
+        transaction.commit().await?;
+        println!("finished migration migrate_collection_log_v2");
+    }
+
+    if !has_migration_run(client, "update_timestamp_triggers").await? {
+        let transaction = client.transaction().await?;
+
+        let names = vec![
+            "stats",
+            "coordinates",
+            "skills",
+            "quests",
+            "inventory",
+            "equipment",
+            "bank",
+            "rune_pouch",
+            "interacting",
+            "seed_vault",
+            "diary_vars",
+            "collection_log"
+        ];
+
+        for name in names {
+            let create_update_timestamp_fn = format!(r#"
+CREATE OR REPLACE FUNCTION groupironman.update_{}_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.{}_last_update = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+"#, name, name);
+            transaction.execute(&create_update_timestamp_fn, &[]).await?;
+
+            let trigger_stmt = format!(r#"
+DO
+$$BEGIN
+  CREATE TRIGGER set_{}_timestamp
+  BEFORE UPDATE ON groupironman.members
+  FOR EACH ROW
+  WHEN (OLD.{} IS DISTINCT FROM NEW.{})
+  EXECUTE FUNCTION groupironman.update_{}_timestamp();
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL;
+END;$$;
+"#, name, name, name, name);
+            transaction.execute(&trigger_stmt, &[]).await?;
+        }
+
+        commit_migration(&transaction, "update_timestamp_triggers").await?;
         transaction.commit().await?;
     }
 
