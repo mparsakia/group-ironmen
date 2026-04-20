@@ -81,7 +81,7 @@ export class SkillGraph extends BaseElement {
     }
 
     const row = (cls, label, data, totalXpGain) => {
-      const xpGainPercent = Math.round((data.xpGain / totalXpGain) * 100);
+      const xpGainPercent = totalXpGain ? Math.round((data.xpGain / totalXpGain) * 100) : 0;
       const skillIcon = Skill.getIcon(label);
       const skillImg = skillIcon.length ? `<img src="${Skill.getIcon(label)}" />` : "";
       return `
@@ -241,7 +241,9 @@ export class SkillGraph extends BaseElement {
     const datesOutsideOfPeriod = [];
     for (const skillData of playerSkillData) {
       const date = SkillGraph.truncatedDateForPeriod(skillData.time, this.period);
-      bucketedSkillData.set(date.getTime(), skillData.data);
+      if (!bucketedSkillData.has(date.getTime())) {
+        bucketedSkillData.set(date.getTime(), skillData.data);
+      }
 
       if (date < earliestDateInPeriod) {
         datesOutsideOfPeriod.push(skillData);
@@ -268,57 +270,70 @@ export class SkillGraph extends BaseElement {
   }
 
   labelsForPeriod(period, dates) {
-    if (period === "Day") {
+    const normalizedPeriod = SkillGraph.normalizedPeriod(period);
+    if (normalizedPeriod === "Day") {
       return dates.map((date) => date.toLocaleTimeString([], { hour: "numeric" }));
-    } else if (period === "Week" || period === "Month") {
+    } else if (normalizedPeriod === "Week" || normalizedPeriod === "Month") {
       // NOTE: For the rest of these periods we don't know at exactly what time the events occured in the user's timezone
       // due to them being truncated. Just going to display the times in UTC
       return dates.map((date) => date.toLocaleDateString([], { timeZone: "UTC", day: "numeric", month: "short" }));
-    } else if (period === "Year") {
+    } else if (normalizedPeriod === "Year") {
       return dates.map((date) => date.toLocaleDateString([], { timeZone: "UTC", year: "numeric", month: "short" }));
     }
   }
 
   static datesForPeriod(period) {
-    const stepInMillisecondsForPeriods = {
-      Day: 3600000,
-      Week: 86400000,
-      Month: 86400000,
-      Year: 2629800000,
-    };
-    const step = stepInMillisecondsForPeriods[period];
+    const normalizedPeriod = SkillGraph.normalizedPeriod(period);
     const stepCountsForPeriods = {
       Day: 24,
       Week: 7,
       Month: 30,
       Year: 12,
     };
-    const count = stepCountsForPeriods[period];
-
-    const now = new Date();
+    const count = stepCountsForPeriods[normalizedPeriod];
+    const now = SkillGraph.truncatedDateForPeriod(new Date(), normalizedPeriod);
     const result = [];
 
     for (let i = count - 1; i >= 0; --i) {
-      const t = new Date(now.getTime() - i * step);
-      result.push(SkillGraph.truncatedDateForPeriod(t, period));
+      const t = new Date(now);
+
+      if (normalizedPeriod === "Day") {
+        t.setTime(now.getTime() - i * 3600000);
+        result.push(t);
+        continue;
+      }
+
+      if (normalizedPeriod === "Week" || normalizedPeriod === "Month") {
+        t.setDate(now.getDate() - i);
+      } else if (normalizedPeriod === "Year") {
+        t.setMonth(now.getMonth() - i, 1);
+      }
+
+      result.push(SkillGraph.truncatedDateForPeriod(t, normalizedPeriod));
     }
 
     return result;
   }
 
   static truncatedDateForPeriod(date, period) {
+    const normalizedPeriod = SkillGraph.normalizedPeriod(period);
     const t = new Date(date);
     t.setMinutes(0, 0, 0);
 
-    if (period !== "Day") {
+    if (normalizedPeriod !== "Day") {
       t.setHours(0);
     }
 
-    if (period === "Year") {
+    if (normalizedPeriod === "Year") {
       t.setMonth(t.getMonth(), 1);
     }
 
     return t;
+  }
+
+  static normalizedPeriod(period) {
+    const periods = new Set(["Day", "Week", "Month", "Year"]);
+    return periods.has(period) ? period : "Day";
   }
 }
 

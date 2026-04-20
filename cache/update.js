@@ -1,6 +1,5 @@
 const child_process = require('child_process');
 const fs = require('fs');
-const xml2js = require('xml2js');
 const glob = require('glob');
 const nAsync = require('async');
 const path = require('path');
@@ -10,13 +9,10 @@ const unzipper = require('unzipper');
 // NOTE: sharp will keep some files open and prevent them from being deleted
 sharp.cache(false);
 
-const xmlParser = new xml2js.Parser();
-const xmlBuilder = new xml2js.Builder();
-
 const runelitePath = './runelite';
 const cacheProjectPath = `${runelitePath}/cache`;
-const cachePomPath = `${cacheProjectPath}/pom.xml`;
-const cacheJarOutputDir = `${cacheProjectPath}/target`;
+const gradleWrapper = process.platform === 'win32' ? 'gradlew.bat' : './gradlew';
+const gradleCacheRunnerInitScriptPath = path.resolve(cacheProjectPath, 'run-cache-tool.init.gradle');
 const osrsCacheDirectory = './cache/cache';
 const siteItemDataPath = '../site/public/data/item_data.json';
 const siteMapIconMetaPath = "../site/public/data/map_icons.json";
@@ -28,6 +24,7 @@ const siteMapIconPath = "../site/public/map/icons/map_icons.webp";
 const siteCollectionLogPath = '../site/public/data/collection_log_info.json';
 const siteCollectionLogDuplicatesPath = '../site/public/data/collection_log_duplicates.json';
 const tileSize = 256;
+let cacheMainClass = 'net.runelite.cache.Cache';
 
 function exec(command, options) {
   console.log(command);
@@ -60,36 +57,75 @@ async function retry(fn, skipLast) {
   }
 }
 
-async function setMainClassInCachePom(mainClass) {
-  console.log(`Setting mainClass of ${cachePomPath} to ${mainClass}`);
-  xmlParser.reset();
-  const cachePomData = fs.readFileSync(cachePomPath, 'utf8');
-  const cachePom = await xmlParser.parseStringPromise(cachePomData);
+function setCacheMainClass(mainClass) {
+  console.log(`Setting cache main class to ${mainClass}`);
+  cacheMainClass = mainClass;
+}
 
-  const plugins = cachePom.project.build[0].plugins[0].plugin;
+function splitArgsPreservingQuotes(argString) {
+  const tokens = argString.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+  return tokens.map((token) => {
+    const isWrappedInDoubleQuotes = token.startsWith('"') && token.endsWith('"');
+    const isWrappedInSingleQuotes = token.startsWith("'") && token.endsWith("'");
+    return (isWrappedInDoubleQuotes || isWrappedInSingleQuotes) ? token.slice(1, -1) : token;
+  });
+}
 
-  const mavenAssemblyPlugin = plugins.find((plugin) => plugin.artifactId[0] === 'maven-assembly-plugin');
-  const configuration = mavenAssemblyPlugin.configuration[0];
-  configuration.archive = [{ manifest: [{ mainClass: [mainClass] }] }];
+function ensureGradleCacheRunnerInitScript() {
+  const script = `import groovy.json.JsonSlurper
 
-  const cachePomResult = xmlBuilder.buildObject(cachePom);
-  fs.writeFileSync(cachePomPath, cachePomResult);
+allprojects {
+  afterEvaluate { p ->
+    def isCacheProject = p.path == ':cache' || p.path == ':' || p.name == 'cache'
+    if (!isCacheProject) {
+      return
+    }
+
+    if (p.tasks.findByName('runCacheTool') != null) {
+      return
+    }
+
+    p.tasks.register('runCacheTool', JavaExec) {
+      def configuredMainClass = p.findProperty('cacheMainClass')
+      if (!configuredMainClass) {
+        throw new GradleException('Missing required -PcacheMainClass argument')
+      }
+
+      def configuredWorkingDir = p.findProperty('cacheWorkingDir')
+      if (!configuredWorkingDir) {
+        throw new GradleException('Missing required -PcacheWorkingDir argument')
+      }
+
+      classpath = p.sourceSets.main.runtimeClasspath
+      mainClass.set(configuredMainClass.toString())
+      workingDir = file(configuredWorkingDir.toString())
+      maxHeapSize = '8g'
+
+      def configuredArgsBase64 = p.findProperty('cacheArgsBase64')
+      if (configuredArgsBase64) {
+        def decodedArgs = new String(configuredArgsBase64.toString().decodeBase64(), 'UTF-8')
+        def parsedArgs = new JsonSlurper().parseText(decodedArgs)
+        if (!(parsedArgs instanceof List)) {
+          throw new GradleException('Expected cacheArgsBase64 to decode into a JSON array')
+        }
+        args parsedArgs.collect { it.toString() }
+      }
+    }
+  }
+}
+`;
+
+  fs.writeFileSync(gradleCacheRunnerInitScriptPath, script);
 }
 
 function execRuneliteCache(params) {
-  const jars = glob.sync(`${cacheJarOutputDir}/cache-*-jar-with-dependencies.jar`);
-  let cacheJar = jars[0];
-  let cacheJarmtime = fs.statSync(cacheJar).mtime;
-  for (const jar of jars) {
-    const mtime = fs.statSync(jar).mtime;
-    if (mtime > cacheJarmtime) {
-      cacheJarmtime = mtime;
-      cacheJar = jar;
-    }
-  }
-
-  const cmd = `java -Xmx8g -jar ${cacheJar} ${params}`;
-  exec(cmd);
+  ensureGradleCacheRunnerInitScript();
+  const escapedWorkingDir = process.cwd().replace(/"/g, '\\"');
+  const escapedMainClass = cacheMainClass.replace(/"/g, '\\"');
+  const cacheArgs = splitArgsPreservingQuotes(params);
+  const cacheArgsBase64 = Buffer.from(JSON.stringify(cacheArgs), 'utf8').toString('base64');
+  const cmd = `${gradleWrapper} :cache:runCacheTool -I "${gradleCacheRunnerInitScriptPath}" -PcacheWorkingDir="${escapedWorkingDir}" -PcacheMainClass="${escapedMainClass}" -PcacheArgsBase64="${cacheArgsBase64}"`;
+  exec(cmd, { cwd: runelitePath });
 }
 
 async function readAllItemFiles() {
@@ -114,7 +150,7 @@ async function readAllItemFiles() {
 }
 
 function buildCacheProject() {
-  exec(`mvn install -Dmaven.test.skip=true -f pom.xml`, { cwd: cacheProjectPath });
+  exec(`${gradleWrapper} :cache:classes`, { cwd: runelitePath });
 }
 
 async function setupRunelite() {
@@ -128,7 +164,7 @@ async function setupRunelite() {
 
 async function dumpItemData() {
   console.log('\nStep: Unpacking item data from cache');
-  await setMainClassInCachePom('net.runelite.cache.Cache');
+  setCacheMainClass('net.runelite.cache.Cache');
   buildCacheProject();
   execRuneliteCache(`-c ${osrsCacheDirectory} -items ./item-data`);
 }
@@ -251,7 +287,7 @@ async function dumpMapData(xteasLocation) {
   console.log('\nStep: Dumping map data');
   const mapImageDumper = fs.readFileSync('./MapImageDumper.java', 'utf8');
   fs.writeFileSync(`${cacheProjectPath}/src/main/java/net/runelite/cache/MapImageDumper.java`, mapImageDumper);
-  await setMainClassInCachePom('net.runelite.cache.MapImageDumper');
+  setCacheMainClass('net.runelite.cache.MapImageDumper');
   buildCacheProject();
   execRuneliteCache(`--cachedir ${osrsCacheDirectory} --xteapath ${xteasLocation} --outputdir ./map-data`);
 }
@@ -260,7 +296,7 @@ async function dumpMapLabels() {
   console.log('\nStep: Dumping map labels');
   const mapLabelDumper = fs.readFileSync('./MapLabelDumper.java', 'utf8');
   fs.writeFileSync(`${cacheProjectPath}/src/main/java/net/runelite/cache/MapLabelDumper.java`, mapLabelDumper);
-  await setMainClassInCachePom('net.runelite.cache.MapLabelDumper');
+  setCacheMainClass('net.runelite.cache.MapLabelDumper');
   buildCacheProject();
   execRuneliteCache(`--cachedir ${osrsCacheDirectory} --outputdir ./map-data/labels`);
 
@@ -280,7 +316,7 @@ async function dumpCollectionLog() {
   console.log('\nStep: Dumping collection log');
   const collectionLogDumper = fs.readFileSync('./CollectionLogDumper.java', 'utf8');
   fs.writeFileSync(`${cacheProjectPath}/src/main/java/net/runelite/cache/CollectionLogDumper.java`, collectionLogDumper);
-  await setMainClassInCachePom('net.runelite.cache.CollectionLogDumper');
+  setCacheMainClass('net.runelite.cache.CollectionLogDumper');
   buildCacheProject();
   execRuneliteCache(`--cachedir ${osrsCacheDirectory} --outputdir ./`);
 }
